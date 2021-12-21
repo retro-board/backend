@@ -1,9 +1,9 @@
 package config
 
 import (
-  "errors"
+	"errors"
 
-  "github.com/caarlos0/env/v6"
+	"github.com/caarlos0/env/v6"
 )
 
 type RDS struct {
@@ -31,9 +31,9 @@ func buildDatabase(c *Config) error {
 		return err
 	}
 
-  if pass == nil {
-    return errors.New("no database password found")
-  }
+	if pass == nil {
+		return errors.New("no database password found")
+	}
 
 	rds.Password = pass["password"].(string)
 	rds.User = pass["username"].(string)

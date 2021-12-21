@@ -2,20 +2,29 @@ package config
 
 import (
   "errors"
+
+  "github.com/caarlos0/env/v6"
 )
 
 type Keycloak struct {
-	Username string
-	Password string
+  Username string
+  Password string
+
+  Hostname  string `env:"KEYCLOAK_ADDRESS" envDefault:"keycloak.chewedfeed.com"`
+  RealmName string `env:"KEYCLOAK_REALM" envDefault:"retro-board"`
 }
 
 func buildKeycloak(c *Config) error {
-	kc := &Keycloak{}
+  kc := &Keycloak{}
 
-	dets, err := c.getVaultSecrets("kv/data/retro-board/keycloak")
-	if err != nil {
-		return err
-	}
+  if err := env.Parse(kc); err != nil {
+    return err
+  }
+
+  dets, err := c.getVaultSecrets("kv/data/retro-board/keycloak")
+  if err != nil {
+    return err
+  }
 
   if dets == nil {
     return errors.New("keycloak secrets not found")
@@ -37,7 +46,7 @@ func buildKeycloak(c *Config) error {
     }
   }
 
-	c.Keycloak = *kc
+  c.Keycloak = *kc
 
-	return nil
+  return nil
 }

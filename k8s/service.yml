@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: retro-board
+  labels:
+    name: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: tygon
+          image: ghcr.io/retro-board/backend:0.4.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DEVELOPMENT
+              value: "false"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tygon-vault-token
+                  key: token
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: retro-board
+  labels:
+    app: backend
+spec:
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app: backend

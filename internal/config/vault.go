@@ -1,10 +1,10 @@
 package config
 
 import (
-  "errors"
-  "fmt"
+	"errors"
+	"fmt"
 
-  "github.com/caarlos0/env/v6"
+	"github.com/caarlos0/env/v6"
 	vaultAPI "github.com/hashicorp/vault/api"
 )
 
@@ -14,12 +14,12 @@ type Vault struct {
 }
 
 type KVSecret struct {
-  Key string
-  Value string
+	Key   string
+	Value string
 }
 
 type KVSecretData struct {
-  Data map[string]interface{} `json:"data"`
+	Data map[string]interface{} `json:"data"`
 }
 
 func GetVaultSecrets(vaultAddress, vaultToken, secretPath string) (map[string]interface{}, error) {
@@ -39,9 +39,9 @@ func GetVaultSecrets(vaultAddress, vaultToken, secretPath string) (map[string]in
 		return m, err
 	}
 
-  if data == nil {
-    return m, errors.New(fmt.Sprintf("no data at path: %s", secretPath))
-  }
+	if data == nil {
+		return m, errors.New(fmt.Sprintf("no data at path: %s", secretPath))
+	}
 
 	return data.Data, nil
 }
@@ -63,18 +63,18 @@ func buildVault(c *Config) error {
 }
 
 func ParseKVSecrets(data map[string]interface{}) ([]KVSecret, error) {
-  var secrets []KVSecret
+	var secrets []KVSecret
 
-  for ik, iv := range data {
-    if ik == "data" {
-      for k, v := range iv.(map[string]interface{}) {
-        secrets = append(secrets, KVSecret{
-          Key: k,
-          Value: fmt.Sprintf("%v", v),
-        })
-      }
-    }
-  }
+	for ik, iv := range data {
+		if ik == "data" {
+			for k, v := range iv.(map[string]interface{}) {
+				secrets = append(secrets, KVSecret{
+					Key:   k,
+					Value: fmt.Sprintf("%v", v),
+				})
+			}
+		}
+	}
 
-  return secrets, nil
+	return secrets, nil
 }
