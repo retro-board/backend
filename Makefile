@@ -137,3 +137,11 @@ bucket-upload: build-aws ## Put the build in the bucket
 build-aws: ## Build for AWS
 	GOOS=linux GOARCH=amd64 go build -o bin/tygon ./cmd
 	zip bin/tygon-local.zip bin/tygon
+
+.PHONY: pod-local
+pod-local:
+	cp ./k8s/Dockerfile .
+	podman build -t ghcr.io/retro-board/backend:dev-latest -f ./Dockerfile
+	rm Dockerfile
+	podman push ghcr.io/retro-board/backend:dev-latest
+	kubectl set image deployments/backend backed=ghcr.io/retro-board/backend:dev-latest --namespace retro-board

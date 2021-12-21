@@ -26,7 +26,7 @@ func NewBlankCompany(c *config.Config) *Company {
 }
 
 func (c *Company) setFormattedName(name string) {
-	c.FormattedName = strings.Replace(name, " ", "-", -1)
+	c.FormattedName = strings.ReplaceAll(name, " ", "-")
 }
 
 func (c *Company) CreateCompany(name string) error {

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/caarlos0/env/v6"
@@ -40,7 +39,7 @@ func GetVaultSecrets(vaultAddress, vaultToken, secretPath string) (map[string]in
 	}
 
 	if data == nil {
-		return m, errors.New(fmt.Sprintf("no data at path: %s", secretPath))
+		return m, fmt.Errorf("no data at path: %s", secretPath)
 	}
 
 	return data.Data, nil

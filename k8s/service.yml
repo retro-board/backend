@@ -16,11 +16,13 @@ spec:
       labels:
         app: backend
     spec:
+      nodeSelector:
+        cputype: amd64
       imagePullSecrets:
         - name: regcred
       containers:
-        - name: tygon
-          image: ghcr.io/retro-board/backend:0.4.3
+        - name: backend
+          image: ghcr.io/retro-board/backend:dev-latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -30,7 +32,7 @@ spec:
             - name: VAULT_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: tygon-vault-token
+                  name: backend-vault-token
                   key: token
 
 ---

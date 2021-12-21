@@ -38,9 +38,9 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sc := struct {
-		Success string `json:"success"`
+		Status string `json:"status"`
 	}{
-		Success: "Company created successfully",
+		Status: "Company created successfully",
 	}
 
 	if err := json.NewEncoder(w).Encode(sc); err != nil {

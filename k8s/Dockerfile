@@ -15,7 +15,7 @@ ARG build
 ARG version
 
 RUN CGO_ENABLED=0 go build -ldflags "-w -s -X github.com/retro-board/backend/app.version=$(version) -X github.com/retro-board/backend/app.build=$(build)" -o ./bin/retro-board -v ./cmd/backend/main.go
-RUN cp ./bin/tygon /
+RUN cp ./bin/retro-board /
 
 # Runner
 FROM alpine AS Runner

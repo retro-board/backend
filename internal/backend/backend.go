@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog"
+	"github.com/retro-board/backend/internal/backend/board"
 	"github.com/retro-board/backend/internal/backend/company"
 	"github.com/retro-board/backend/internal/backend/ws"
 	"github.com/retro-board/backend/internal/config"
@@ -42,10 +43,17 @@ func (b Backend) Start() error {
 	r.Use(c.Handler)
 	r.Use(bugmiddleware.BugFixes)
 
-	r.HandleFunc("/ws", ws.Handler)
+	r.HandleFunc("/ws", ws.Setup(b.Config).Handler)
 
 	r.Route("/company", func(r chi.Router) {
 		r.Post("/", company.NewBlankCompany(b.Config).CreateHandler)
+	})
+
+	r.Route("/board", func(r chi.Router) {
+		r.Route("/{boardID}", func(r chi.Router) {
+			r.Get("/client", board.NewBoard(b.Config).SetupClientHandler)
+			r.Get("/", board.NewBoard(b.Config).GetHandler)
+		})
 	})
 
 	bugLog.Local().Infof("listening on %d\n", b.Config.Local.Port)
