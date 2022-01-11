@@ -1,19 +1,20 @@
 package backend
 
 import (
-	"fmt"
-	"net/http"
+  "fmt"
+  "net/http"
 
-	bugLog "github.com/bugfixes/go-bugfixes/logs"
-	bugmiddleware "github.com/bugfixes/go-bugfixes/middleware"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-	"github.com/go-chi/httplog"
-	"github.com/retro-board/backend/internal/backend/board"
-	"github.com/retro-board/backend/internal/backend/company"
-	"github.com/retro-board/backend/internal/backend/ws"
-	"github.com/retro-board/backend/internal/config"
+  bugLog "github.com/bugfixes/go-bugfixes/logs"
+  bugMiddleware "github.com/bugfixes/go-bugfixes/middleware"
+  "github.com/go-chi/chi/v5"
+  "github.com/go-chi/chi/v5/middleware"
+  "github.com/go-chi/cors"
+  "github.com/go-chi/httplog"
+  "github.com/retro-board/backend/internal/backend/account"
+  "github.com/retro-board/backend/internal/backend/board"
+  "github.com/retro-board/backend/internal/backend/company"
+  "github.com/retro-board/backend/internal/backend/ws"
+  "github.com/retro-board/backend/internal/config"
 )
 
 type Backend struct {
@@ -41,7 +42,7 @@ func (b Backend) Start() error {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Heartbeat("/ping"))
 	r.Use(c.Handler)
-	r.Use(bugmiddleware.BugFixes)
+	r.Use(bugMiddleware.BugFixes)
 
 	r.HandleFunc("/ws", ws.Setup(b.Config).Handler)
 
@@ -54,6 +55,12 @@ func (b Backend) Start() error {
 			r.Get("/client", board.NewBoard(b.Config).SetupClientHandler)
 			r.Get("/", board.NewBoard(b.Config).GetHandler)
 		})
+	})
+
+	r.Route("/account", func(r chi.Router) {
+		r.Post("/register", account.NewAccount(b.Config).RegisterHandler)
+		r.Get("/login", account.NewAccount(b.Config).LoginHandler)
+		r.Get("/callback", account.NewAccount(b.Config).CallbackHandler)
 	})
 
 	bugLog.Local().Infof("listening on %d\n", b.Config.Local.Port)

@@ -18,6 +18,7 @@ require (
 	github.com/armon/go-metrics v0.3.9 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
+	github.com/coreos/go-oidc/v3 v3.1.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-resty/resty/v2 v2.6.0 // indirect
@@ -49,7 +50,6 @@ require (
 	github.com/jackc/pgproto3/v2 v2.2.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.9.1 // indirect
-	github.com/keloran/go-probe v0.0.0-20210417224119-539dae99a65e // indirect
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
@@ -67,11 +67,13 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210928044308-7d9f5e0b762b // indirect
+	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	google.golang.org/appengine v1.6.6 // indirect
+	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
 	google.golang.org/grpc v1.41.0 // indirect
-	google.golang.org/protobuf v1.26.0 // indirect
-	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
+	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 )

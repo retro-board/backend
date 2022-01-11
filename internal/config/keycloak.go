@@ -10,8 +10,9 @@ type Keycloak struct {
 	Username string
 	Password string
 
-	Hostname  string `env:"KEYCLOAK_ADDRESS" envDefault:"keycloak.chewedfeed.com"`
-	RealmName string `env:"KEYCLOAK_REALM" envDefault:"retro-board"`
+	Hostname           string `env:"KEYCLOAK_ADDRESS" envDefault:"keycloak.chewedfeed.com"`
+	RealmName          string `env:"KEYCLOAK_REALM" envDefault:"retro-board"`
+	CallbackDomainPath string `env:"KEYCLOAK_CALLBACK_DOMAIN_PATH" envDefault:"http://localhost:3001/account/callback"`
 }
 
 func buildKeycloak(c *Config) error {
@@ -21,7 +22,7 @@ func buildKeycloak(c *Config) error {
 		return err
 	}
 
-	dets, err := c.getVaultSecrets("kv/data/retro-board/keycloak")
+	dets, err := c.getVaultSecrets("kv/data/retro-board/backend-api")
 	if err != nil {
 		return err
 	}
