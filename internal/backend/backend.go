@@ -1,20 +1,20 @@
 package backend
 
 import (
-  "fmt"
-  "net/http"
+	"fmt"
+	"net/http"
 
-  bugLog "github.com/bugfixes/go-bugfixes/logs"
-  bugMiddleware "github.com/bugfixes/go-bugfixes/middleware"
-  "github.com/go-chi/chi/v5"
-  "github.com/go-chi/chi/v5/middleware"
-  "github.com/go-chi/cors"
-  "github.com/go-chi/httplog"
-  "github.com/retro-board/backend/internal/backend/account"
-  "github.com/retro-board/backend/internal/backend/board"
-  "github.com/retro-board/backend/internal/backend/company"
-  "github.com/retro-board/backend/internal/backend/ws"
-  "github.com/retro-board/backend/internal/config"
+	bugLog "github.com/bugfixes/go-bugfixes/logs"
+	bugMiddleware "github.com/bugfixes/go-bugfixes/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/httplog"
+	"github.com/retro-board/backend/internal/backend/account"
+	"github.com/retro-board/backend/internal/backend/board"
+	"github.com/retro-board/backend/internal/backend/company"
+	"github.com/retro-board/backend/internal/backend/ws"
+	"github.com/retro-board/backend/internal/config"
 )
 
 type Backend struct {
