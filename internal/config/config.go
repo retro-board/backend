@@ -6,9 +6,11 @@ import (
 )
 
 type Local struct {
-	KeepLocal   bool `env:"LOCAL_ONLY" envDefault:"false"`
-	Development bool `env:"DEVELOPMENT" envDefault:"false"`
-	Port        int  `env:"PORT" envDefault:"3000"`
+	KeepLocal     bool   `env:"LOCAL_ONLY" envDefault:"false"`
+	Development   bool   `env:"DEVELOPMENT" envDefault:"false"`
+	Port          int    `env:"PORT" envDefault:"3000"`
+	Frontend      string `env:"FRONTEND_URL" envDefault:"retro-board.it"`
+	FrontendProto string `env:"FRONTEND_PROTO" envDefault:"https"`
 }
 
 type Config struct {
