@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/Nerzal/gocloak/v10 v10.0.1
 	github.com/bugfixes/go-bugfixes v0.7.1
-	github.com/caarlos0/env/v6 v6.8.0
+	github.com/caarlos0/env/v6 v6.9.1
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/cors v1.2.0
