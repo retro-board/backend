@@ -14,9 +14,20 @@ spec:
   tls:
     - hosts:
         - api.retro-board.it
+        - backend.retro-board.it
       secretName: retro-board-backend-tls
   rules:
     - host: api.retro-board.it
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 3000
+    - host: backend.retro-board.it
       http:
         paths:
           - path: /

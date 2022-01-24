@@ -13,6 +13,7 @@ type ClientRequest struct {
 	UserID  string `json:"user_id"`
 }
 
+// TODO: add error handling
 func jsonError(w http.ResponseWriter, msg string, errs error) {
 	bugLog.Local().Info("jsonError: %+v", errs)
 
