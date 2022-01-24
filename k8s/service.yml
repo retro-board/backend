@@ -22,8 +22,8 @@ spec:
         - name: regcred
       containers:
         - name: backend
-          image: ghcr.io/retro-board/backend:dev-latest
-          imagePullPolicy: IfNotPresent
+          image: registry.chewedfeed.com/retro-board/backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           env:

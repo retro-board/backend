@@ -1,5 +1,6 @@
 SERVICE_NAME=backend
 STACK_TIME=$(shell date "+%y-%m-%d_%H-%M")
+GIT_COMMIT=`git rev-parse HEAD`
 -include .env
 export
 
@@ -10,12 +11,22 @@ setup: ## Get linting stuffs
 
 .PHONY: build-images
 build-images: ## Build the images
-	docker buildx build --platform linux/arm64 --tag "ghcr.io/retro-board/backend:`git rev-parse HEAD`" --build-arg build=`git rev-parse HEAD` --build-arg version=`git describe --tags --dirty` --file ./k8s/Dockerfile .
-	docker tag "ghcr.io/retro-board/backend:`git rev-parse HEAD`" "ghcr.io/retro-board/backend:latest"
-	docker scan "ghcr.io/retro-board/backend:`git rev-parse HEAD`"
+	nerdctl build --platform arm64,amd64 --tag registry.chewedfeed.com/retro-board/backend:${GIT_COMMIT} --build-arg build=${GIT_COMMIT} --build-arg version=`git describe --tags --dirty` -f ./k8s/Dockerfile .
+	nerdctl tag registry.chewedfeed.com/retro-board/backend:${GIT_COMMIT} registry.chewedfeed.com/retro-board/backend:latest
+	nerdctl tag registry.chewedfeed.com/retro-board/backend:latest ghcr.io/retro-board/backend:${STACK_TIME}
+	nerdctl push registry.chewedfeed.com/retro-board/backend:${GIT_COMMIT}
+	nerdctl push registry.chewedfeed.com/retro-board/backend:latest
+	#nerdctl push ghcr.io/retro-board/backend:${STACK_TIME}
+
+	#docker scan "ghcr.io/retro-board/backend:`git rev-parse HEAD`"
 
 .PHONY: build
-build: lint build-images ## Build the app
+#build: lint build-images ## Build the app
+build: build-images
+
+.PHONY: build-deploy
+build-deploy: build
+	kubectl apply -f ./k8s/service.yml
 
 .PHONY: test
 test: lint ## Test the app

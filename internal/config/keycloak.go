@@ -13,9 +13,9 @@ type Keycloak struct {
 	Username string
 	Password string
 
-	Hostname           string `env:"KEYCLOAK_ADDRESS" envDefault:"keycloak.chewedfeed.com"`
+	Hostname           string `env:"KEYCLOAK_ADDRESS" envDefault:"https://keycloak.chewedfeed.com"`
 	RealmName          string `env:"KEYCLOAK_REALM" envDefault:"retro-board"`
-	CallbackDomainPath string `env:"KEYCLOAK_CALLBACK_DOMAIN_PATH" envDefault:"http://api.retro-board.it/account/callback"`
+	CallbackDomainPath string `env:"KEYCLOAK_CALLBACK_DOMAIN_PATH" envDefault:"https://api.retro-board.it/account/callback"`
 }
 
 func buildKeycloak(c *Config) error {
