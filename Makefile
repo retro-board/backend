@@ -1,6 +1,5 @@
 SERVICE_NAME=backend
-STACK_TIME=$(shell date "+%y-%m-%d_%H-%M")
-GIT_COMMIT=`git rev-parse HEAD`
+GIT_COMMIT=`git rev-parse --short HEAD`
 -include .env
 export
 
@@ -11,34 +10,30 @@ setup: ## Get linting stuffs
 
 .PHONY: build-images
 build-images: ## Build the images
-	nerdctl build --platform arm64,amd64 --tag registry.chewedfeed.com/retro-board/backend:${GIT_COMMIT} --build-arg build=${GIT_COMMIT} --build-arg version=`git describe --tags --dirty` -f ./k8s/Dockerfile .
-	nerdctl tag registry.chewedfeed.com/retro-board/backend:${GIT_COMMIT} registry.chewedfeed.com/retro-board/backend:latest
-	nerdctl tag registry.chewedfeed.com/retro-board/backend:latest ghcr.io/retro-board/backend:${STACK_TIME}
-	nerdctl push registry.chewedfeed.com/retro-board/backend:${GIT_COMMIT}
-	nerdctl push registry.chewedfeed.com/retro-board/backend:latest
-	#nerdctl push ghcr.io/retro-board/backend:${STACK_TIME}
+	nerdctl build --platform=amd64,arm64 --tag containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} --build-arg VERSION=0.1 --build-arg BUILD=${GIT_COMMIT} -f ./k8s/Dockerfile .
+	nerdctl tag containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} containers.home.develbox.info/retro-board/${SERVICE_NAME}:latest
 
-	#docker scan "ghcr.io/retro-board/backend:`git rev-parse HEAD`"
+.PHONY: publish-images
+publish-images:
+	nerdctl push containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} --all-platforms
+	nerdctl push containers.home.develbox.info/retro-board/${SERVICE_NAME}:latest --all-platforms
 
 .PHONY: build
-#build: lint build-images ## Build the app
 build: build-images
 
+.PHONY: deploy
+deploy:
+	kubectl set image deployment/${SERVICE_NAME} ${SERVICE_NAME}=containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} --namespace=retro-board
+
 .PHONY: build-deploy
-build-deploy: build
-	kubectl apply -f ./k8s/service.yml
+build-deploy: build publish-images deploy
+
+.PHONY: lint-build-deploy
+lint-build-deploy: lint build publish-images deploy
 
 .PHONY: test
 test: lint ## Test the app
 	go test -v -race -bench=./... -benchmem -timeout=120s -cover -coverprofile=./test/coverage.txt -bench=./... ./...
-
-.PHONY: run
-run: build ## Build and run
-	bin/${SERVICE_NAME}
-
-.PHONY: lambda
-lambda: ## Run the lambda version
-	go build ./cmd/backend
 
 .PHONY: mocks
 mocks: ## Generate the mocks
@@ -46,25 +41,6 @@ mocks: ## Generate the mocks
 
 .PHONY: full
 full: clean build fmt lint test ## Clean, build, make sure its formatted, linted, and test it
-
-.PHONY: docker-up
-docker-up: docker-start sleepy ## Start docker
-
-docker-start: ## Docker Start
-	docker compose -p ${SERVICE_NAME} --project-directory=docker up -d
-
-docker-stop: ## Docker Stop
-	docker compose -p ${SERVICE_NAME} --project-directory=docker down
-
-.PHONY: docker-down
-docker-down: docker-stop ## Stop docker
-
-.PHONY: docker-restart
-docker-restart: docker-down docker-up ## Restart Docker
-
-.PHONY: docker-logs
-docker-logs: ## Follow the logs
-	docker logs -f ${SERVICE_NAME}_localstack_1
 
 .PHONY: lint
 lint: ## Lint
@@ -83,76 +59,3 @@ pre-commit: fmt lint ## Do formatting and linting
 clean: ## Clean
 	go clean ./...
 	rm -rf bin/${SERVICE_NAME}
-
-sleepy: ## Sleepy
-	sleep 60
-
-.PHONY: cloud-up
-cloud-up: docker-start sleepy stack-create ## CloudFormation Up
-
-.PHONY: cloud-restart
-cloud-restart: docker-down cloud-up
-
-.PHONY: stack-create
-stack-create: # Create the stack
-	aws cloudformation create-stack \
-  		--template-body file://docker/cloudformation.yaml \
-  		--stack-name ${SERVICE_NAME}-$(STACK_TIME) \
-  		--endpoint https://localhost.localstack.cloud:4566 \
-  		--region us-east-1 \
-  		--parameters \
-  		  ParameterKey=GithubKey,ParameterValue=${GITHUB_CLIENT_ID} \
-  		  ParameterKey=GithubSecret,ParameterValue=${GITHUB_CLIENT_SECRET} \
-  		  ParameterKey=GithubAppId,ParameterValue=${GITHUB_APP_ID} \
-  		  ParameterKey=GoogleKey,ParameterValue=${GOOGLE_CLIENT_ID} \
-  		  ParameterKey=GoogleSecret,ParameterValue=${GOOGLE_CLIENT_SECRET} \
-  		  ParameterKey=JWTSecret,ParameterValue=${JWT_SECRET} \
-  		  ParameterKey=DiscordAppId,ParameterValue=${DISCORD_APP_ID} \
-  		  ParameterKey=DiscordPublicKey,ParameterValue=${DISCORD_PUBLIC_KEY} \
-  		  ParameterKey=DiscordClientID,ParameterValue=${DISCORD_CLIENT_ID} \
-  		  ParameterKey=DiscordClientSecret,ParameterValue=${DISCORD_CLIENT_SECRET} \
-  		  ParameterKey=DiscordBotToken,ParameterValue=${DISCORD_BOT_TOKEN} \
-  		1> /dev/null
-
-.PHONY: stack-delete
-stack-delete: # Delete the stack
-	aws cloudformation delete-stack \
-		--stack-name ${SERVICE_NAME}-$(STACK_TIME) \
-		--endpoint http://localhost.localstack.cloud:4566 \
-		--region us-east-1
-
-.PHONY: wipeData
-wipeData: # Wipe Data
-	cat ./docker/drop.sql | docker exec -i agent_database_1 psql -U database_username -d bugfixes
-
-.PHONY: injectData
-injectData: # Wipe Data
-	cat ./docker/create.sql | docker exec -i agent_database_1 psql -U database_username -d bugfixes
-	cat ./docker/local.sql | docker exec -i agent_database_1 psql -U database_username -d bugfixes
-
-.PHONY: reset-tables
-reset-tables: wipeData injectData # Reset the tables
-
-.PHONY: bucket-up
-bucket-up: bucket-create bucket-upload ## S3 Bucket Up
-
-bucket-create: ## Create the bucket for builds
-	aws s3api create-bucket \
-		--endpoint https://localhost.localstack.cloud:4566 \
-		--bucket tygon \
-		--quiet
-
-bucket-upload: build-aws ## Put the build in the bucket
-	aws s3 cp bin/tygon-local.zip s3://tygon/tygon-local.zip --endpoint https://localhost.localstack.cloud:4566
-
-build-aws: ## Build for AWS
-	GOOS=linux GOARCH=amd64 go build -o bin/tygon ./cmd
-	zip bin/tygon-local.zip bin/tygon
-
-.PHONY: pod-local
-pod-local:
-	cp ./k8s/Dockerfile .
-	podman build -t ghcr.io/retro-board/backend:dev-latest -f ./Dockerfile
-	rm Dockerfile
-	podman push ghcr.io/retro-board/backend:dev-latest
-	kubectl set image deployments/backend backed=ghcr.io/retro-board/backend:dev-latest --namespace retro-board

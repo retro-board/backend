@@ -112,6 +112,7 @@ func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, a.OAuthConfig.AuthCodeURL(st, oidc.Nonce(nonce)), http.StatusFound)
 }
 
+//nolint:gocyclo
 func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	st, err := r.Cookie("retro_state")
 	if err != nil {

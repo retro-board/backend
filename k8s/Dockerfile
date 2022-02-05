@@ -11,10 +11,10 @@ RUN go mod download
 
 ## Copy files
 COPY . .
-ARG build
-ARG version
+ARG BUILD
+ARG VERSION
 
-RUN CGO_ENABLED=0 go build -ldflags "-w -s -X github.com/retro-board/backend/app.version=$(version) -X github.com/retro-board/backend/app.build=$(build)" -o ./bin/retro-board -v ./cmd/backend/main.go
+RUN CGO_ENABLED=0 go build -ldflags "-w -s -X github.com/retro-board/backend/app.version=$(VERSION) -X github.com/retro-board/backend/app.build=$(BUILD)" -o ./bin/retro-board -v ./cmd/backend/main.go
 RUN cp ./bin/retro-board /
 
 # Runner
