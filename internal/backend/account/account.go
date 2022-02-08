@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -112,48 +113,54 @@ func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, a.OAuthConfig.AuthCodeURL(st, oidc.Nonce(nonce)), http.StatusFound)
 }
 
+func accountError(w http.ResponseWriter, r *http.Request, err error) {
+	bugLog.Info(err)
+
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
 //nolint:gocyclo
 func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	st, err := r.Cookie("retro_state")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		accountError(w, r, err)
 		return
 	}
 
 	if r.URL.Query().Get("state") != st.Value {
-		http.Error(w, "state did not match", http.StatusBadRequest)
+		accountError(w, r, errors.New("state did not match"))
 		return
 	}
 
 	oauth2Token, err := a.OAuthConfig.Exchange(a.CTX, r.URL.Query().Get("code"))
 	if err != nil {
-		http.Error(w, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
+		accountError(w, r, errors.New("Failed to exchange token: "+err.Error()))
 		return
 	}
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		http.Error(w, "No id_token field in oauth2 token.", http.StatusInternalServerError)
+		accountError(w, r, errors.New("No id_token field in oauth2 token."))
 		return
 	}
 	idToken, err := a.Verifier.Verify(a.CTX, rawIDToken)
 	if err != nil {
-		http.Error(w, "Failed to verify ID Token: "+err.Error(), http.StatusInternalServerError)
+		accountError(w, r, errors.New("Failed to verify ID Token: "+err.Error()))
 		return
 	}
 
 	nonce, err := r.Cookie("retro_nonce")
 	if err != nil {
-		http.Error(w, "nonce not found", http.StatusBadRequest)
+		accountError(w, r, errors.New("nonce not found"))
 		return
 	}
 	if idToken.Nonce != nonce.Value {
-		http.Error(w, "nonce did not match", http.StatusBadRequest)
+		accountError(w, r, errors.New("nonce did not match"))
 		return
 	}
 
 	clm := jwx.Claims{}
 	if err := idToken.Claims(&clm); err != nil {
-		http.Error(w, "Failed to parse claims: "+err.Error(), http.StatusInternalServerError)
+		accountError(w, r, errors.New("Failed to parse claims: "+err.Error()))
 		return
 	}
 
@@ -161,7 +168,7 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	domain := domainParts[len(domainParts)-1]
 	exists, err := a.CheckDomain(domain)
 	if err != nil {
-		http.Error(w, "Failed to check domain: "+err.Error(), http.StatusInternalServerError)
+		accountError(w, r, errors.New("Failed to check domain: "+err.Error()))
 		return
 	}
 
@@ -172,7 +179,7 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.setUserOwner(clm); err != nil {
-		http.Error(w, "Failed to set user owner: "+err.Error(), http.StatusInternalServerError)
+		accountError(w, r, errors.New("Failed to set user owner: "+err.Error()))
 		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("%s://%s/company/create", a.Config.FrontendProto, a.Config.Frontend), http.StatusFound)
