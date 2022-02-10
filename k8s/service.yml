@@ -22,7 +22,7 @@ spec:
         - name: regcred
       containers:
         - name: backend
-          image: registry.chewedfeed.com/retro-board/backend:latest
+          image: containers.home.develbox.info/retro-board/backend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

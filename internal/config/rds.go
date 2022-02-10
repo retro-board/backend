@@ -26,7 +26,7 @@ func buildDatabase(c *Config) error {
 		return nil
 	}
 
-	pass, err := c.getVaultSecrets("database/creds/retro-board-backend")
+	pass, err := c.getVaultSecrets("database/creds/backend-role")
 	if err != nil {
 		return err
 	}
