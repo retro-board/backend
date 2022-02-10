@@ -34,12 +34,12 @@ func buildKeycloak(c *Config) error {
 	kc.ClientSecret = clientSecret
 
 	// Account
-	username, password, err := getKeycloakUsernamePassword(c, "kv/data/retro-board/keycloak")
-	if err != nil {
-		return err
-	}
-	kc.Username = username
-	kc.Password = password
+	// username, password, err := getKeycloakUsernamePassword(c, "kv/data/retro-board/keycloak")
+	// if err != nil {
+	// 	return err
+	// }
+	// kc.Username = username
+	// kc.Password = password
 
 	c.Keycloak = *kc
 
