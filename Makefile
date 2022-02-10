@@ -10,7 +10,7 @@ setup: ## Get linting stuffs
 
 .PHONY: build-images
 build-images: ## Build the images
-	nerdctl build --platform=amd64,arm64 --tag containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} --build-arg main.BuildVersion=0.1 --build-arg main.BuildHash=${GIT_COMMIT} -f ./k8s/Dockerfile .
+	nerdctl build --platform=amd64,arm64 --tag containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} --build-arg VERSION=0.1 --build-arg BUILD=${GIT_COMMIT} -f ./k8s/Dockerfile .
 	nerdctl tag containers.home.develbox.info/retro-board/${SERVICE_NAME}:${GIT_COMMIT} containers.home.develbox.info/retro-board/${SERVICE_NAME}:latest
 
 .PHONY: publish-images
