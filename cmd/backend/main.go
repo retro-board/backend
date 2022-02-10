@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	VERSION string = ""
-	BUILD string = ""
+	BuildVersion string = ""
+	BuildHash string = ""
 )
 
 func main() {
