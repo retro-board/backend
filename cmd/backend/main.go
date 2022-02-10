@@ -7,6 +7,11 @@ import (
 	"github.com/retro-board/backend/internal/config"
 )
 
+var (
+	VERSION string = ""
+	BUILD string = ""
+)
+
 func main() {
 	bugLog.Local().Info("Starting Backend")
 
