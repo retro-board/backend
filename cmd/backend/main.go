@@ -9,7 +9,7 @@ import (
 
 var (
 	BuildVersion string = ""
-	BuildHash string = ""
+	BuildHash    string = ""
 )
 
 func main() {

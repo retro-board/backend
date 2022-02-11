@@ -73,6 +73,22 @@ func (a *Account) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (a *Account) getClientAndToken() (gocloak.GoCloak, *gocloak.JWT, error) {
+	client := gocloak.NewClient(a.Config.Keycloak.Hostname)
+	token, err := client.GetToken(a.CTX, a.Config.Keycloak.RealmName, gocloak.TokenOptions{
+		ClientID:     gocloak.StringP(a.Config.Keycloak.ClientID),
+		ClientSecret: gocloak.StringP(a.Config.Keycloak.ClientSecret),
+		GrantType:    gocloak.StringP("password"),
+		Username:     &a.Config.Keycloak.Username,
+		Password:     &a.Config.Keycloak.Password,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return client, token, nil
+}
+
 func randString(length int) (string, error) {
 	b := make([]byte, length)
 	if _, err := io.ReadFull(rand.Reader, b); err != nil {
@@ -182,46 +198,34 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("%s://%s.%s", a.Config.FrontendProto, domain, a.Config.Frontend), http.StatusFound)
 	}
 
-	if err := a.setUserOwner(clm, idToken.Subject); err != nil {
+	if err := a.setUserOwner(idToken.Subject); err != nil {
 		accountError(w, r, errors.New("Failed to set user owner: "+err.Error()))
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("%s://%s/company/create", a.Config.FrontendProto, a.Config.Frontend), http.StatusFound)
+	a.frontendCookie(w, r, "user", clm)
+
+	http.Redirect(w, r, fmt.Sprintf("%s://%s/user/callback", a.Config.FrontendProto, a.Config.Frontend), http.StatusFound)
+	// http.Redirect(w, r, fmt.Sprintf("%s://%s/company/create", a.Config.FrontendProto, a.Config.Frontend), http.StatusFound)
 }
 
 func (a *Account) CheckDomain(domain string) (bool, error) {
 	return false, nil
 }
 
-func (a *Account) setUserOwner(claims jwx.Claims, userId string) error {
-	ctx := context.Background()
+func (a *Account) setUserOwner(userId string) error {
+	client, token, err := a.getClientAndToken()
+	if err != nil {
+		return err
+	}
 
-	client := gocloak.NewClient(a.Config.Keycloak.Hostname)
-	token, err := client.GetToken(a.CTX, a.Config.Keycloak.RealmName, gocloak.TokenOptions{
-		ClientID:     gocloak.StringP(a.Config.Keycloak.ClientID),
-		ClientSecret: gocloak.StringP(a.Config.Keycloak.ClientSecret),
-		GrantType:    gocloak.StringP("password"),
-		Username:     &a.Config.Keycloak.Username,
-		Password:     &a.Config.Keycloak.Password,
+	roles, err := client.GetRealmRoles(a.CTX, token.AccessToken, a.Config.Keycloak.RealmName, gocloak.GetRoleParams{
+		Search: gocloak.StringP(a.Config.Keycloak.CompanyOwner),
 	})
 	if err != nil {
 		return err
 	}
 
-	user, err := client.GetUserByID(ctx, token.AccessToken, a.Config.Keycloak.RealmName, userId)
-	if err != nil {
-		return err
-	}
-
-	roles, err := client.GetRealmRoles(ctx, token.AccessToken, a.Config.Keycloak.RealmName, gocloak.GetRoleParams{
-		Search: gocloak.StringP("company_owner"),
-	})
-	if err != nil {
-		return err
-	}
-	fmt.Sprint(roles)
-
-	if err := client.AddRealmRoleToUser(ctx, token.AccessToken, a.Config.Keycloak.RealmName, userId, []gocloak.Role{{
+	if err := client.AddRealmRoleToUser(a.CTX, token.AccessToken, a.Config.Keycloak.RealmName, userId, []gocloak.Role{{
 		ID:          roles[0].ID,
 		Name:        roles[0].Name,
 		ContainerID: roles[0].ContainerID,
@@ -229,26 +233,16 @@ func (a *Account) setUserOwner(claims jwx.Claims, userId string) error {
 		return err
 	}
 
-	mp, err := client.GetRoleMappingByUserID(ctx, token.AccessToken, a.Config.Keycloak.RealmName, userId)
-	if err != nil {
-		return err
-	}
-
-	fmt.Sprint(user)
-	fmt.Sprint(mp)
-
-	// companyOwner := "company_owner"
-	// for _, role := range roles {
-	// 	if role.Name == &companyOwner {
-	// 		if err := client.AddRealmRoleToUser(ctx, token.AccessToken, a.Config.Keycloak.RealmName, claims.Subject, []gocloak.Role{
-	// 			{
-	// 				ID: role.ID,
-	// 			},
-	// 		}); err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
-
 	return nil
 }
+
+// func (a *Account) CheckUserPermission(userId, permissionName string) (bool, error) {
+// 	client, token, err := a.getClientAndToken()
+// 	if err != nil {
+// 		return false, err
+// 	}
+//
+// 	client.
+//
+// 	return false, nil
+// }
