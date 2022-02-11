@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,11 +26,14 @@ type Account struct {
 	OAuthConfig *oauth2.Config
 	CTX         context.Context
 	State       string
+
+	UserAccount
 }
 
 type UserAccount struct {
 	ID     string
 	Domain string
+	Role   string
 }
 
 func NewAccount(config *config.Config) *Account {
@@ -108,13 +112,22 @@ func callbackCookie(w http.ResponseWriter, r *http.Request, name, v string) {
 	http.SetCookie(w, &cookie)
 }
 
-func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name string, claims jwx.Claims) {
+func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name string, ua UserAccount) {
+	uas, err := json.Marshal(ua)
+	if err != nil {
+		bugLog.Infof("failed to marshal user account: %+v", err)
+		return
+	}
+
 	cookie := http.Cookie{
+		Path:     "/",
+		Domain:   fmt.Sprintf("%s://%s/", a.Config.FrontendProto, a.Config.Frontend),
 		Name:     fmt.Sprintf("retro_%s", name),
-		Value:    "",
+		Value:    string(uas),
 		MaxAge:   int(time.Hour.Seconds()),
 		Secure:   r.TLS != nil,
 		HttpOnly: true,
+		Expires:  time.Now().Add(time.Hour * 1),
 	}
 
 	http.SetCookie(w, &cookie)
@@ -184,32 +197,53 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	domainParts := strings.Split(clm.Email, "@")
-	domain := domainParts[len(domainParts)-1]
-	exists, err := a.CheckDomain(domain)
-	if err != nil {
-		accountError(w, r, errors.New("Failed to check domain: "+err.Error()))
+	if err := a.GetRole(w, r, clm); err != nil {
+		accountError(w, r, errors.New("Failed to get role: "+err.Error()))
 		return
 	}
 
-	a.frontendCookie(w, r, "user", clm)
-
-	if exists {
-		http.Redirect(w, r, fmt.Sprintf("%s://%s.%s", a.Config.FrontendProto, domain, a.Config.Frontend), http.StatusFound)
-	}
-
-	if err := a.setUserOwner(idToken.Subject); err != nil {
-		accountError(w, r, errors.New("Failed to set user owner: "+err.Error()))
-		return
-	}
-	a.frontendCookie(w, r, "user", clm)
-
-	http.Redirect(w, r, fmt.Sprintf("%s://%s/user/callback", a.Config.FrontendProto, a.Config.Frontend), http.StatusFound)
-	// http.Redirect(w, r, fmt.Sprintf("%s://%s/company/create", a.Config.FrontendProto, a.Config.Frontend), http.StatusFound)
+	http.Redirect(w, r,
+		fmt.Sprintf("%s://%s/user/callback/%s/%s/%s",
+			a.Config.FrontendProto,
+			a.Config.Frontend,
+			a.UserAccount.ID,
+			a.UserAccount.Domain,
+			a.UserAccount.Role,
+		),
+		http.StatusFound)
 }
 
 func (a *Account) CheckDomain(domain string) (bool, error) {
 	return false, nil
+}
+
+func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims) error {
+	domainParts := strings.Split(clm.Email, "@")
+	fullDomain := domainParts[len(domainParts)-1]
+	domain := strings.Split(fullDomain, ".")[0]
+	exists, err := a.CheckDomain(domain)
+	if err != nil {
+		return err
+	}
+
+	ua := UserAccount{
+		ID:     clm.Subject,
+		Role:   a.Config.Keycloak.KeycloakRoles.SprintUser,
+		Domain: domain,
+	}
+
+	if !exists {
+		if err := a.setUserOwner(clm.Subject); err != nil {
+			accountError(w, r, errors.New("Failed to set user owner: "+err.Error()))
+			return err
+		}
+		ua.Role = a.Config.Keycloak.KeycloakRoles.CompanyOwner
+		a.UserAccount = ua
+	}
+
+	a.UserAccount = ua
+	a.frontendCookie(w, r, "user", ua)
+	return nil
 }
 
 func (a *Account) setUserOwner(userId string) error {
