@@ -14,6 +14,11 @@ func (c *Company) addCompanyToKeycloak(ctx context.Context) error {
 		return bugLog.Error(err)
 	}
 
+	// token, err := gc.LoginAdmin(ctx, c.Config.Keycloak.Username, c.Config.Keycloak.Password, c.Config.Keycloak.RealmName)
+	// if err != nil {
+	// 	return bugLog.Error(err)
+	// }
+
 	return c.createDefaultGroups(ctx, gc, token)
 }
 

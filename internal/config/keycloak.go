@@ -10,8 +10,8 @@ type Keycloak struct {
 	ClientID     string
 	ClientSecret string
 
-	Username string
-	Password string
+	Username string `env:"KEYCLOAK_API_USER"`
+	Password string `env:"KEYCLOAK_API_PASSWORD"`
 
 	Hostname           string `env:"KEYCLOAK_ADDRESS" envDefault:"https://keycloak.chewedfeed.com"`
 	RealmName          string `env:"KEYCLOAK_REALM" envDefault:"retro-board"`

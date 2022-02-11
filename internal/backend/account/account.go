@@ -24,6 +24,7 @@ type Account struct {
 	Verifier    *oidc.IDTokenVerifier
 	OAuthConfig *oauth2.Config
 	CTX         context.Context
+	State       string
 }
 
 type UserAccount struct {
@@ -36,6 +37,7 @@ func NewAccount(config *config.Config) *Account {
 	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/auth/realms/%s", config.Keycloak.Hostname, config.Keycloak.RealmName))
 	if err != nil {
 		bugLog.Infof("provider failed: %+v", err)
+		return nil
 	}
 	verifier := provider.Verifier(&oidc.Config{
 		ClientID: config.Keycloak.ClientID,
@@ -52,11 +54,18 @@ func NewAccount(config *config.Config) *Account {
 		},
 	}
 
+	st, err := randString(32)
+	if err != nil {
+		bugLog.Infof("failed generate state: %+v", err)
+		return nil
+	}
+
 	return &Account{
 		Config:      config,
 		Verifier:    verifier,
 		OAuthConfig: &oauthConfig,
 		CTX:         ctx,
+		State:       st,
 	}
 }
 
@@ -96,21 +105,16 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 }
 
 func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	st, err := randString(32)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	nonce, err := randString(32)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	callbackCookie(w, r, "state", st)
+	callbackCookie(w, r, "state", a.State)
 	callbackCookie(w, r, "nonce", nonce)
 
-	http.Redirect(w, r, a.OAuthConfig.AuthCodeURL(st, oidc.Nonce(nonce)), http.StatusFound)
+	http.Redirect(w, r, a.OAuthConfig.AuthCodeURL(a.State, oidc.Nonce(nonce)), http.StatusFound)
 }
 
 func accountError(w http.ResponseWriter, r *http.Request, err error) {
@@ -178,7 +182,7 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("%s://%s.%s", a.Config.FrontendProto, domain, a.Config.Frontend), http.StatusFound)
 	}
 
-	if err := a.setUserOwner(clm); err != nil {
+	if err := a.setUserOwner(clm, idToken.Subject); err != nil {
 		accountError(w, r, errors.New("Failed to set user owner: "+err.Error()))
 		return
 	}
@@ -189,21 +193,49 @@ func (a *Account) CheckDomain(domain string) (bool, error) {
 	return false, nil
 }
 
-func (a *Account) setUserOwner(claims jwx.Claims) error {
+func (a *Account) setUserOwner(claims jwx.Claims, userId string) error {
 	ctx := context.Background()
 
 	client := gocloak.NewClient(a.Config.Keycloak.Hostname)
-	token, err := client.LoginAdmin(ctx, a.Config.Keycloak.Username, a.Config.Keycloak.Password, a.Config.Keycloak.RealmName)
+	token, err := client.GetToken(a.CTX, a.Config.Keycloak.RealmName, gocloak.TokenOptions{
+		ClientID:     gocloak.StringP(a.Config.Keycloak.ClientID),
+		ClientSecret: gocloak.StringP(a.Config.Keycloak.ClientSecret),
+		GrantType:    gocloak.StringP("password"),
+		Username:     &a.Config.Keycloak.Username,
+		Password:     &a.Config.Keycloak.Password,
+	})
 	if err != nil {
 		return err
 	}
 
-	roles, err := client.GetRealmRoles(ctx, token.AccessToken, a.Config.Keycloak.RealmName, gocloak.GetRoleParams{})
+	user, err := client.GetUserByID(ctx, token.AccessToken, a.Config.Keycloak.RealmName, userId)
 	if err != nil {
 		return err
 	}
 
+	roles, err := client.GetRealmRoles(ctx, token.AccessToken, a.Config.Keycloak.RealmName, gocloak.GetRoleParams{
+		Search: gocloak.StringP("company_owner"),
+	})
+	if err != nil {
+		return err
+	}
 	fmt.Sprint(roles)
+
+	if err := client.AddRealmRoleToUser(ctx, token.AccessToken, a.Config.Keycloak.RealmName, userId, []gocloak.Role{{
+		ID:          roles[0].ID,
+		Name:        roles[0].Name,
+		ContainerID: roles[0].ContainerID,
+	}}); err != nil {
+		return err
+	}
+
+	mp, err := client.GetRoleMappingByUserID(ctx, token.AccessToken, a.Config.Keycloak.RealmName, userId)
+	if err != nil {
+		return err
+	}
+
+	fmt.Sprint(user)
+	fmt.Sprint(mp)
 
 	// companyOwner := "company_owner"
 	// for _, role := range roles {
