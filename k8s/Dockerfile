@@ -14,7 +14,7 @@ COPY . .
 ARG BUILD
 ARG VERSION
 
-RUN CGO_ENABLED=0 go build -ldflags "-w -s -X github.com/retro-board/backend/main.version=${VERSION} -X github.com/retro-board/backend/main.build=${BUILD}" -o ./bin/retro-board -v ./cmd/backend/main.go
+RUN CGO_ENABLED=0 go build -ldflags "-w -s -X github.com/retro-board/backend/main.version=$(VERSION) -X github.com/retro-board/backend/main.build=$(BUILD)" -o ./bin/retro-board -v ./cmd/backend/main.go
 RUN cp ./bin/retro-board /
 
 # Runner
