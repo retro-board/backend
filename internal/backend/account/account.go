@@ -157,7 +157,7 @@ func accountError(w http.ResponseWriter, err error) {
 func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	st, err := r.Cookie("retro_state")
 	if err != nil {
-		accountError(w, err)
+		accountError(w, errors.New("cookie"+err.Error()))
 		return
 	}
 
