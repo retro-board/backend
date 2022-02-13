@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"strings"
@@ -31,9 +32,10 @@ type Account struct {
 }
 
 type UserAccount struct {
-	ID     string
-	Domain string
-	Role   string
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Domain string `json:"domain"`
+	Role   string `json:"role"`
 }
 
 func NewAccount(config *config.Config) *Account {
@@ -123,10 +125,10 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 		Path:     "/",
 		Domain:   fmt.Sprintf("%s://%s/", a.Config.FrontendProto, a.Config.Frontend),
 		Name:     fmt.Sprintf("retro_%s", name),
-		Value:    string(uas),
+		Value:    html.EscapeString(string(uas)),
 		MaxAge:   int(time.Hour.Seconds()),
 		Secure:   r.TLS != nil,
-		HttpOnly: true,
+		HttpOnly: false,
 		Expires:  time.Now().Add(time.Hour * 1),
 	}
 
@@ -203,12 +205,9 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r,
-		fmt.Sprintf("%s://%s/user/callback/%s/%s/%s",
+		fmt.Sprintf("%s://%s/user/callback",
 			a.Config.FrontendProto,
 			a.Config.Frontend,
-			a.UserAccount.ID,
-			a.UserAccount.Domain,
-			a.UserAccount.Role,
 		),
 		http.StatusFound)
 }
@@ -230,6 +229,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 		ID:     clm.Subject,
 		Role:   a.Config.Keycloak.KeycloakRoles.SprintUser,
 		Domain: domain,
+		Name:   clm.Name,
 	}
 
 	if !exists {
