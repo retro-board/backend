@@ -66,6 +66,8 @@ func NewAccount(config *config.Config) *Account {
 		return nil
 	}
 
+	bugLog.Local().Infof("config: %+v", config)
+
 	return &Account{
 		Config:      config,
 		Verifier:    verifier,
