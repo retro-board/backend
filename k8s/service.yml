@@ -34,6 +34,12 @@ spec:
                 secretKeyRef:
                   name: backend-vault-token
                   key: token
+            - name: OWNER_ROLE
+              value: "company_owner"
+            - name: LEADER_ROLE
+              value: "retro_leader"
+            - name: USER_ROLE
+              value: "retro_user"
 
 ---
 apiVersion: v1

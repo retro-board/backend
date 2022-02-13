@@ -66,8 +66,6 @@ func NewAccount(config *config.Config) *Account {
 		return nil
 	}
 
-	bugLog.Local().Infof("config: %+v", config)
-
 	return &Account{
 		Config:      config,
 		Verifier:    verifier,
@@ -261,7 +259,6 @@ func (a *Account) setUserOwner(userID string) error {
 	}
 
 	if len(roles) == 0 {
-		bugLog.Local().Info(roles)
 		return errors.New("no roles found")
 	}
 	if err := client.AddRealmRoleToUser(a.CTX, token.AccessToken, a.Config.Keycloak.RealmName, userID, []gocloak.Role{{
