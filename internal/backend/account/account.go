@@ -103,9 +103,10 @@ func randString(length int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func callbackCookie(w http.ResponseWriter, r *http.Request, name, v string) {
+func (a Account) callbackCookie(w http.ResponseWriter, r *http.Request, name, v string) {
 	cookie := http.Cookie{
 		Name:     fmt.Sprintf("retro_%s", name),
+		Domain:   fmt.Sprintf("%s://%s/", a.Config.FrontendProto, a.Config.Frontend),
 		Value:    v,
 		MaxAge:   int(time.Hour.Seconds()),
 		Secure:   r.TLS != nil,
@@ -142,8 +143,8 @@ func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callbackCookie(w, r, "state", a.State)
-	callbackCookie(w, r, "nonce", nonce)
+	a.callbackCookie(w, r, "state", a.State)
+	a.callbackCookie(w, r, "nonce", nonce)
 
 	http.Redirect(w, r, a.OAuthConfig.AuthCodeURL(a.State, oidc.Nonce(nonce)), http.StatusFound)
 }
