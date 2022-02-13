@@ -105,12 +105,11 @@ func randString(length int) (string, error) {
 
 func (a Account) callbackCookie(w http.ResponseWriter, r *http.Request, name, v string) {
 	cookie := http.Cookie{
-		Name:     fmt.Sprintf("retro_%s", name),
-		Domain:   fmt.Sprintf("%s://%s/", a.Config.FrontendProto, a.Config.Frontend),
-		Value:    v,
-		MaxAge:   int(time.Hour.Seconds()),
-		Secure:   r.TLS != nil,
-		HttpOnly: true,
+		Name:   fmt.Sprintf("retro_%s", name),
+		Domain: fmt.Sprintf("%s://%s/", a.Config.FrontendProto, a.Config.Frontend),
+		Value:  v,
+		MaxAge: int(time.Hour.Seconds()),
+		Secure: r.TLS != nil,
 	}
 	http.SetCookie(w, &cookie)
 }
