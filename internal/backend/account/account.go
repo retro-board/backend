@@ -148,7 +148,7 @@ func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, a.OAuthConfig.AuthCodeURL(a.State, oidc.Nonce(nonce)), http.StatusFound)
 }
 
-func accountError(w http.ResponseWriter, r *http.Request, err error) {
+func accountError(w http.ResponseWriter, err error) {
 	bugLog.Info(err)
 
 	http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -158,49 +158,49 @@ func accountError(w http.ResponseWriter, r *http.Request, err error) {
 func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	st, err := r.Cookie("retro_state")
 	if err != nil {
-		accountError(w, r, err)
+		accountError(w, err)
 		return
 	}
 
 	if r.URL.Query().Get("state") != st.Value {
-		accountError(w, r, errors.New("state did not match"))
+		accountError(w, errors.New("state did not match"))
 		return
 	}
 
 	oauth2Token, err := a.OAuthConfig.Exchange(a.CTX, r.URL.Query().Get("code"))
 	if err != nil {
-		accountError(w, r, errors.New("Failed to exchange token: "+err.Error()))
+		accountError(w, errors.New("failed to exchange token: "+err.Error()))
 		return
 	}
 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 	if !ok {
-		accountError(w, r, errors.New("No id_token field in oauth2 token."))
+		accountError(w, errors.New("no id_token field in oauth2 token"))
 		return
 	}
 	idToken, err := a.Verifier.Verify(a.CTX, rawIDToken)
 	if err != nil {
-		accountError(w, r, errors.New("Failed to verify ID Token: "+err.Error()))
+		accountError(w, errors.New("Failed to verify ID Token: "+err.Error()))
 		return
 	}
 
 	nonce, err := r.Cookie("retro_nonce")
 	if err != nil {
-		accountError(w, r, errors.New("nonce not found"))
+		accountError(w, errors.New("nonce not found"))
 		return
 	}
 	if idToken.Nonce != nonce.Value {
-		accountError(w, r, errors.New("nonce did not match"))
+		accountError(w, errors.New("nonce did not match"))
 		return
 	}
 
 	clm := jwx.Claims{}
 	if err := idToken.Claims(&clm); err != nil {
-		accountError(w, r, errors.New("Failed to parse claims: "+err.Error()))
+		accountError(w, errors.New("Failed to parse claims: "+err.Error()))
 		return
 	}
 
 	if err := a.GetRole(w, r, clm); err != nil {
-		accountError(w, r, errors.New("Failed to get role: "+err.Error()))
+		accountError(w, errors.New("Failed to get role: "+err.Error()))
 		return
 	}
 
@@ -234,7 +234,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 
 	if !exists {
 		if err := a.setUserOwner(clm.Subject); err != nil {
-			accountError(w, r, errors.New("Failed to set user owner: "+err.Error()))
+			accountError(w, errors.New("Failed to set user owner: "+err.Error()))
 			return err
 		}
 		ua.Role = a.Config.Keycloak.KeycloakRoles.CompanyOwner
@@ -246,7 +246,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 	return nil
 }
 
-func (a *Account) setUserOwner(userId string) error {
+func (a *Account) setUserOwner(userID string) error {
 	client, token, err := a.getClientAndToken()
 	if err != nil {
 		return err
@@ -259,7 +259,7 @@ func (a *Account) setUserOwner(userId string) error {
 		return err
 	}
 
-	if err := client.AddRealmRoleToUser(a.CTX, token.AccessToken, a.Config.Keycloak.RealmName, userId, []gocloak.Role{{
+	if err := client.AddRealmRoleToUser(a.CTX, token.AccessToken, a.Config.Keycloak.RealmName, userID, []gocloak.Role{{
 		ID:          roles[0].ID,
 		Name:        roles[0].Name,
 		ContainerID: roles[0].ContainerID,

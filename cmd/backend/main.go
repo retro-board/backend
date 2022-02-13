@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 
 	"github.com/retro-board/backend/internal/backend"
@@ -14,6 +16,7 @@ var (
 
 func main() {
 	bugLog.Local().Info("Starting Backend")
+	bugLog.Local().Info(fmt.Sprintf("Version: %s, Hash: %s", BuildVersion, BuildHash))
 
 	cfg, err := config.Build()
 	if err != nil {

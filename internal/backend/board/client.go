@@ -14,6 +14,7 @@ type ClientRequest struct {
 }
 
 // TODO: add error handling
+//nolint:deadcode,unused
 func jsonError(w http.ResponseWriter, msg string, errs error) {
 	bugLog.Local().Info("jsonError: %+v", errs)
 
