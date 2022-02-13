@@ -157,7 +157,7 @@ func accountError(w http.ResponseWriter, err error) {
 func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	st, err := r.Cookie("retro_state")
 	if err != nil {
-		accountError(w, errors.New("cookie"+err.Error()))
+		accountError(w, errors.New("cookie: "+err.Error()))
 		return
 	}
 
@@ -258,6 +258,10 @@ func (a *Account) setUserOwner(userID string) error {
 		return err
 	}
 
+	if len(roles) == 0 {
+		bugLog.Local().Info(roles)
+		return errors.New("no roles found")
+	}
 	if err := client.AddRealmRoleToUser(a.CTX, token.AccessToken, a.Config.Keycloak.RealmName, userID, []gocloak.Role{{
 		ID:          roles[0].ID,
 		Name:        roles[0].Name,
