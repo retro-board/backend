@@ -4,10 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"net/http"
 	"strings"
@@ -17,6 +15,7 @@ import (
 	"github.com/Nerzal/gocloak/v10/pkg/jwx"
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/retro-board/backend/internal/config"
 	"golang.org/x/oauth2"
 )
@@ -36,6 +35,7 @@ type UserAccount struct {
 	Name   string `json:"name"`
 	Domain string `json:"domain"`
 	Role   string `json:"role"`
+	jwt.RegisteredClaims
 }
 
 func NewAccount(config *config.Config) *Account {
@@ -114,9 +114,10 @@ func (a Account) callbackCookie(w http.ResponseWriter, r *http.Request, name, v 
 }
 
 func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name string, ua UserAccount) {
-	uas, err := json.Marshal(ua)
+	t := jwt.NewWithClaims(jwt.SigningMethodHS256, ua)
+	ss, err := t.SignedString([]byte(a.Config.Local.JWTSecret))
 	if err != nil {
-		bugLog.Infof("failed to marshal user account: %+v", err)
+		bugLog.Infof("failed generate token: %+v", err)
 		return
 	}
 
@@ -124,7 +125,7 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 		Path:     "/",
 		Domain:   a.Config.Frontend,
 		Name:     fmt.Sprintf("retro_%s", name),
-		Value:    html.EscapeString(string(uas)),
+		Value:    ss,
 		MaxAge:   int(time.Hour.Seconds()),
 		Secure:   r.TLS != nil,
 		HttpOnly: false,
@@ -132,7 +133,6 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 	}
 
 	http.SetCookie(w, &cookie)
-	bugLog.Local().Info(cookie)
 }
 
 func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
