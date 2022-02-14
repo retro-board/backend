@@ -122,7 +122,7 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 
 	cookie := http.Cookie{
 		Path:     "/",
-		Domain:   fmt.Sprintf("%s://%s/", a.Config.FrontendProto, a.Config.Frontend),
+		Domain:   a.Config.Frontend,
 		Name:     fmt.Sprintf("retro_%s", name),
 		Value:    html.EscapeString(string(uas)),
 		MaxAge:   int(time.Hour.Seconds()),
@@ -132,6 +132,7 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 	}
 
 	http.SetCookie(w, &cookie)
+	bugLog.Local().Info(cookie)
 }
 
 func (a *Account) LoginHandler(w http.ResponseWriter, r *http.Request) {
