@@ -55,8 +55,6 @@ func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
 		return false, bugLog.Error(err)
 	}
 
-	bugLog.Logf("RDS: %+v", c.Config.RDS)
-
 	defer func() {
 		if err := conn.Close(ctx); err != nil {
 			bugLog.Debugf("CheckDomainExists disconnect: %+v", err)
@@ -67,6 +65,7 @@ func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
 	if err := conn.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM company WHERE domain = $1)`,
 		c.CompanyData.Domain).Scan(&exists); err != nil {
+		bugLog.Info("hmm")
 		return false, bugLog.Error(err)
 	}
 
