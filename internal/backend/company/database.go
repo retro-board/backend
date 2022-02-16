@@ -55,6 +55,8 @@ func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
 		return false, bugLog.Error(err)
 	}
 
+	bugLog.Logf("RDS: %+v", c.Config.RDS)
+
 	defer func() {
 		if err := conn.Close(ctx); err != nil {
 			bugLog.Debugf("CheckDomainExists disconnect: %+v", err)
