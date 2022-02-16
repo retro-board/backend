@@ -40,7 +40,8 @@ spec:
               value: "retro_leader"
             - name: USER_ROLE
               value: "retro_user"
-
+            - name: RDS_DB
+              value: "retro-board"
 ---
 apiVersion: v1
 kind: Service

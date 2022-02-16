@@ -65,7 +65,6 @@ func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
 	if err := conn.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM company WHERE domain = $1)`,
 		c.CompanyData.Domain).Scan(&exists); err != nil {
-		bugLog.Info("hmm")
 		return false, bugLog.Error(err)
 	}
 
