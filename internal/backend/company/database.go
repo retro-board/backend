@@ -2,6 +2,7 @@ package company
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
@@ -37,17 +38,18 @@ func (c *Company) addCompanyToDatabase(ctx context.Context) error {
 	}()
 
 	if _, err := conn.Exec(ctx,
-		`INSERT INTO company (name, formatted_name, keycloak_id) VALUES ($1, $2, $3)`,
-		c.Name,
-		c.FormattedName,
-		c.ID); err != nil {
+		`INSERT INTO company (name, subdomain, domain) VALUES ($1, $2, $3)`,
+		c.CompanyData.Name,
+		c.CompanyData.SubDomain,
+		c.CompanyData.Domain); err != nil {
 		return bugLog.Error(err)
 	}
 
+	c.CompanyData.Enabled = true
 	return nil
 }
 
-func (c *Company) companyDomainExists(ctx context.Context) (bool, error) {
+func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
 	conn, err := c.getConnection(ctx)
 	if err != nil {
 		return false, bugLog.Error(err)
@@ -55,16 +57,68 @@ func (c *Company) companyDomainExists(ctx context.Context) (bool, error) {
 
 	defer func() {
 		if err := conn.Close(ctx); err != nil {
-			bugLog.Debugf("companyDomainExists disconnect: %+v", err)
+			bugLog.Debugf("CheckDomainExists disconnect: %+v", err)
 		}
 	}()
 
 	var exists bool
 	if err := conn.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM company WHERE formatted_name = $1)`,
-		c.FormattedName).Scan(&exists); err != nil {
+		`SELECT EXISTS(SELECT 1 FROM company WHERE domain = $1)`,
+		c.CompanyData.Domain).Scan(&exists); err != nil {
 		return false, bugLog.Error(err)
 	}
 
 	return exists, nil
+}
+
+func (c *Company) CheckSubDomainExists(ctx context.Context) (bool, error) {
+	conn, err := c.getConnection(ctx)
+	if err != nil {
+		return false, bugLog.Error(err)
+	}
+
+	defer func() {
+		if err := conn.Close(ctx); err != nil {
+			bugLog.Debugf("CheckSubDomainExists disconnect: %+v", err)
+		}
+	}()
+
+	var exists bool
+	if err := conn.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM company WHERE subdomain = $1)`,
+		c.CompanyData.SubDomain).Scan(&exists); err != nil {
+		return false, errors.New("subdomain already exists")
+	}
+
+	return exists, nil
+}
+
+func (c *Company) GetCompanyData() error {
+	conn, err := c.getConnection(context.Background())
+	if err != nil {
+		return bugLog.Error(err)
+	}
+
+	defer func() {
+		if err := conn.Close(context.Background()); err != nil {
+			bugLog.Debugf("GetCompanyData disconnect: %+v", err)
+		}
+	}()
+
+	var name, subDomain, domain string
+	if err := conn.QueryRow(context.Background(),
+		`SELECT name, subdomain, domain FROM company WHERE domain = $1`,
+		c.CompanyData.Domain).Scan(
+		&name,
+		&subDomain,
+		&domain); err != nil {
+		return bugLog.Error(err)
+	}
+
+	c.CompanyData.Name = name
+	c.CompanyData.SubDomain = subDomain
+	c.CompanyData.Domain = domain
+	c.CompanyData.Enabled = true
+
+	return nil
 }

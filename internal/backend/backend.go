@@ -58,7 +58,6 @@ func (b Backend) Start() error {
 	})
 
 	r.Route("/account", func(r chi.Router) {
-		r.Post("/register", account.NewAccount(b.Config).RegisterHandler)
 		r.Get("/login", account.NewAccount(b.Config).LoginHandler)
 		r.Get("/callback", account.NewAccount(b.Config).CallbackHandler)
 	})
