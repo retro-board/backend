@@ -10,7 +10,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/cors v1.2.0
 	github.com/go-chi/httplog v0.2.1
-	github.com/golang-jwt/jwt/v4 v4.1.0
+	github.com/golang-jwt/jwt/v4 v4.3.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/vault/api v1.3.1
 	github.com/jackc/pgx/v4 v4.15.0
