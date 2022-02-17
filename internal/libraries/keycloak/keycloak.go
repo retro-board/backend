@@ -130,6 +130,7 @@ func (k *Keycloak) IsAllowed(userId, roleName, permissionName string) (bool, err
 	if err != nil {
 		return false, bugLog.Error(err)
 	}
+	k.IdOfClient = idOfClient
 
 	res, err := k.GetResourceID(permissionName)
 	if err != nil {
@@ -208,6 +209,11 @@ func (k *Keycloak) IsAllowed(userId, roleName, permissionName string) (bool, err
 		} `json:"results"`
 		Status string `json:"status"`
 	}
+
+	// var testResult interface{}
+	// if err := json.NewDecoder(resp.Body).Decode(&testResult); err != nil {
+	// 	return false, bugLog.Error(err)
+	// }
 	result := respFormat{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return false, bugLog.Error(err)

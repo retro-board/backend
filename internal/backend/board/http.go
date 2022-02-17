@@ -38,6 +38,7 @@ func (b Board) GetHandler(w http.ResponseWriter, r *http.Request) {
 func (b Board) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	var subdomain string = r.URL.Query().Get("subdomain")
 	var role string = r.URL.Query().Get("role")
+	b.CTX = r.Context()
 
 	userToken := r.Header.Get("X-User-Token")
 	userId, err := encrypt.NewEncrypt(b.Config.Local.TokenSeed).Decrypt(userToken)
