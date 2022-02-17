@@ -81,8 +81,9 @@ func randString(length int) (string, error) {
 
 func (a *Account) CheckDomain(domain string) (bool, error) {
 	c := company.NewBlankCompany(a.Config)
+	c.CTX = a.CTX
 	c.CompanyData.Domain = domain
-	return c.CheckDomainExists(a.CTX)
+	return c.CheckDomainExists()
 }
 
 func getDomain(email string) string {

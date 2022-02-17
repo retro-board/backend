@@ -11,6 +11,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/retro-board/backend/internal/backend/company"
+	"github.com/retro-board/backend/internal/libraries/encrypt"
 	"github.com/retro-board/backend/internal/libraries/keycloak"
 )
 
@@ -89,7 +90,10 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 			accountError(w, errors.New("Failed to get company info: "+err.Error()))
 			return
 		}
-		if ci.Enabled {
+
+		a.frontendCookie(w, r, "user", ci.SubDomain, a.UserAccount)
+
+		if ci.Enabled && !c.Config.Local.Development {
 			http.Redirect(w, r,
 				fmt.Sprintf("%s://%s.%s/user/callback",
 					a.Config.FrontendProto,
@@ -161,8 +165,14 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 		a.UserAccount = ua
 	}
 
+	userid, err := encrypt.NewEncrypt(a.Config.Local.TokenSeed).Encrypt(ua.ID)
+	if err != nil {
+		return err
+	}
+	ua.ID = userid
+
 	a.UserAccount = ua
-	a.frontendCookie(w, r, "user", ua)
+	a.frontendCookie(w, r, "user", "", ua)
 
 	return nil
 }
@@ -170,6 +180,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 func (a *Account) CompanyInfo(w http.ResponseWriter, r *http.Request, domain string) (company.CompanyData, error) {
 	c := company.NewBlankCompany(a.Config)
 	c.CompanyData.Domain = domain
+	c.CTX = r.Context()
 	if err := c.GetCompanyData(); err != nil {
 		return company.CompanyData{}, err
 	}
@@ -197,7 +208,7 @@ func accountError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name string, ua UserAccount) {
+func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name, subDomain string, ua UserAccount) {
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, ua)
 	ss, err := t.SignedString([]byte(a.Config.Local.JWTSecret))
 	if err != nil {
@@ -205,9 +216,14 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name str
 		return
 	}
 
+	dom := a.Config.Frontend
+	if subDomain != "" && !a.Config.Development {
+		dom = subDomain
+	}
+
 	cookie := http.Cookie{
 		Path:     "/",
-		Domain:   a.Config.Frontend,
+		Domain:   dom,
 		Name:     fmt.Sprintf("retro_%s", name),
 		Value:    ss,
 		MaxAge:   int(time.Hour.Seconds()),

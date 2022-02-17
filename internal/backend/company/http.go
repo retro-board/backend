@@ -1,5 +1,6 @@
 package company
 
+import "C"
 import (
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/retro-board/backend/internal/libraries/encrypt"
 	"github.com/retro-board/backend/internal/libraries/keycloak"
 )
 
@@ -34,6 +36,7 @@ func jsonError(w http.ResponseWriter, msg string, errs error) {
 
 func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	var cr CreateRequest
+	c.CTX = r.Context()
 
 	if err := json.NewDecoder(r.Body).Decode(&cr); err != nil {
 		jsonError(w, "Invalid request payload", err)
@@ -68,14 +71,20 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		c.Config.Keycloak.RealmName,
 	)
 
-	allowed, err := kc.IsAllowed(r.Header.Get("Authorization"), cr.UserRole, "company:create")
+	userId, err := encrypt.NewEncrypt(c.Config.Local.TokenSeed).Decrypt(r.Header.Get("X-User-Token"))
+	if err != nil {
+		jsonError(w, "Invalid request payload", err)
+		return
+	}
+
+	allowed, err := kc.IsAllowed(userId, cr.UserRole, "company:create")
 	if err != nil {
 		jsonError(w, "Invalid request payload", err)
 		return
 	}
 
 	if allowed {
-		if err := c.CreateCompany(); err != nil {
+		if err := c.CreateCompany(cr.FirstTeamName); err != nil {
 			jsonError(w, "Failed to create company", err)
 			return
 		}
@@ -107,7 +116,7 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 	}
 
 	cookieDomain := c.Config.Frontend
-	if c.CompanyData.SubDomain != "" {
+	if c.CompanyData.SubDomain != "" && !c.Config.Development {
 		cookieDomain = fmt.Sprintf("%s.%s", c.CompanyData.SubDomain, c.Config.Frontend)
 	}
 

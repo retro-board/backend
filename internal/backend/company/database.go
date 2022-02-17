@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
-	"github.com/jackc/pgx/v4"
+	pgx "github.com/jackc/pgx/v4"
 )
 
-func (c *Company) getConnection(ctx context.Context) (*pgx.Conn, error) {
-	conn, err := pgx.Connect(ctx, fmt.Sprintf(
+func (c *Company) getConnection() (*pgx.Conn, error) {
+	conn, err := pgx.Connect(c.CTX, fmt.Sprintf(
 		"postgresql://%s:%s@%s:%d/%s",
 		c.Config.RDS.User,
 		c.Config.RDS.Password,
@@ -25,44 +25,72 @@ func (c *Company) getConnection(ctx context.Context) (*pgx.Conn, error) {
 	return conn, nil
 }
 
-func (c *Company) addCompanyToDatabase(ctx context.Context) error {
-	conn, err := c.getConnection(ctx)
+func (c *Company) addCompanyToDatabase(firstTeamName string) error {
+	conn, err := c.getConnection()
 	if err != nil {
 		return bugLog.Error(err)
 	}
 
 	defer func() {
-		if err := conn.Close(ctx); err != nil {
+		if err := conn.Close(c.CTX); err != nil {
 			bugLog.Debugf("addCompanyToDatabase disconnect: %+v", err)
 		}
 	}()
 
-	if _, err := conn.Exec(ctx,
-		`INSERT INTO company (name, subdomain, domain) VALUES ($1, $2, $3)`,
+	var companyId int
+	if err := conn.QueryRow(c.CTX,
+		`INSERT INTO company (name, subdomain, domain) VALUES ($1, $2, $3) RETURNING id`,
 		c.CompanyData.Name,
 		c.CompanyData.SubDomain,
-		c.CompanyData.Domain); err != nil {
+		c.CompanyData.Domain).Scan(&companyId); err != nil {
 		return bugLog.Error(err)
 	}
 
+	c.CompanyData.ID = companyId
 	c.CompanyData.Enabled = true
+
+	if err := c.addBoardToDatabase(firstTeamName); err != nil {
+		return bugLog.Error(err)
+	}
+
 	return nil
 }
 
-func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
-	conn, err := c.getConnection(ctx)
+func (c *Company) addBoardToDatabase(firstTeamName string) error {
+	conn, err := c.getConnection()
+	if err != nil {
+		return bugLog.Error(err)
+	}
+
+	defer func() {
+		if err := conn.Close(c.CTX); err != nil {
+			bugLog.Debugf("addCompanyToDatabase disconnect: %+v", err)
+		}
+	}()
+	if _, err := conn.Exec(c.CTX,
+		`INSERT INTO board (company_id, name) VALUES ($1, $2)`,
+		c.CompanyData.ID,
+		firstTeamName); err != nil {
+		return bugLog.Error(err)
+	}
+
+	return nil
+}
+
+func (c *Company) CheckDomainExists() (bool, error) {
+	conn, err := c.getConnection()
 	if err != nil {
 		return false, bugLog.Error(err)
 	}
 
 	defer func() {
-		if err := conn.Close(ctx); err != nil {
+		if err := conn.Close(c.CTX); err != nil {
 			bugLog.Debugf("CheckDomainExists disconnect: %+v", err)
 		}
 	}()
 
 	var exists bool
-	if err := conn.QueryRow(ctx,
+	if err := conn.QueryRow(c.CTX,
 		`SELECT EXISTS(SELECT 1 FROM company WHERE domain = $1)`,
 		c.CompanyData.Domain).Scan(&exists); err != nil {
 		return false, bugLog.Error(err)
@@ -71,20 +99,20 @@ func (c *Company) CheckDomainExists(ctx context.Context) (bool, error) {
 	return exists, nil
 }
 
-func (c *Company) CheckSubDomainExists(ctx context.Context) (bool, error) {
-	conn, err := c.getConnection(ctx)
+func (c *Company) CheckSubDomainExists() (bool, error) {
+	conn, err := c.getConnection()
 	if err != nil {
 		return false, bugLog.Error(err)
 	}
 
 	defer func() {
-		if err := conn.Close(ctx); err != nil {
+		if err := conn.Close(c.CTX); err != nil {
 			bugLog.Debugf("CheckSubDomainExists disconnect: %+v", err)
 		}
 	}()
 
 	var exists bool
-	if err := conn.QueryRow(ctx,
+	if err := conn.QueryRow(c.CTX,
 		`SELECT EXISTS(SELECT 1 FROM company WHERE subdomain = $1)`,
 		c.CompanyData.SubDomain).Scan(&exists); err != nil {
 		return false, errors.New("subdomain already exists")
@@ -94,7 +122,7 @@ func (c *Company) CheckSubDomainExists(ctx context.Context) (bool, error) {
 }
 
 func (c *Company) GetCompanyData() error {
-	conn, err := c.getConnection(context.Background())
+	conn, err := c.getConnection()
 	if err != nil {
 		return bugLog.Error(err)
 	}

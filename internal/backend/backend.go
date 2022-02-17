@@ -28,10 +28,18 @@ func (b Backend) Start() error {
 		JSON: true,
 	})
 
+	allowedOrigins := []string{
+		"https://retro-board.it",
+		"https://*.retro-board.it",
+	}
+	if b.Config.Development {
+		allowedOrigins = append(allowedOrigins, "http://*")
+	}
+
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-User-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
@@ -52,9 +60,11 @@ func (b Backend) Start() error {
 
 	r.Route("/board", func(r chi.Router) {
 		r.Route("/{boardID}", func(r chi.Router) {
-			r.Get("/client", board.NewBoard(b.Config).SetupClientHandler)
 			r.Get("/", board.NewBoard(b.Config).GetHandler)
 		})
+	})
+	r.Route("/boards", func(r chi.Router) {
+		r.Get("/", board.NewBoard(b.Config).GetAllHandler)
 	})
 
 	r.Route("/account", func(r chi.Router) {

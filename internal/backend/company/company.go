@@ -17,7 +17,7 @@ type Company struct {
 }
 
 type CompanyData struct {
-	ID        string `json:"id"`
+	ID        int    `json:"id"`
 	Name      string `json:"name"`
 	SubDomain string `json:"subdomain"`
 	Domain    string `json:"domain"`
@@ -28,7 +28,7 @@ type CompanyData struct {
 
 func NewBlankCompany(c *config.Config) *Company {
 	cd := CompanyData{
-		ID:        "",
+		ID:        0,
 		Name:      "Blank Company",
 		SubDomain: "blank-company",
 		Enabled:   false,
@@ -41,21 +41,19 @@ func NewBlankCompany(c *config.Config) *Company {
 	}
 }
 
-func (c *Company) CreateCompany() error {
-	ctx := context.Background()
-
-	if domainExists, err := c.CheckDomainExists(ctx); err != nil {
+func (c *Company) CreateCompany(firstTeamName string) error {
+	if domainExists, err := c.CheckDomainExists(); err != nil {
 		return bugLog.Error(err)
 	} else if domainExists {
 		return nil
 	}
-	if subdomainExists, err := c.CheckSubDomainExists(ctx); err != nil {
+	if subdomainExists, err := c.CheckSubDomainExists(); err != nil {
 		return bugLog.Error(err)
 	} else if subdomainExists {
 		return errors.New("subdomain already exists")
 	}
 
-	if err := c.addCompanyToDatabase(ctx); err != nil {
+	if err := c.addCompanyToDatabase(firstTeamName); err != nil {
 		return bugLog.Error(err)
 	}
 
