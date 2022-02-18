@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
@@ -42,7 +43,7 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch cr.SubDomain {
+	switch strings.ToLower(cr.SubDomain) {
 	case "":
 		jsonError(w, "SubDomain is required", nil)
 		return
@@ -50,6 +51,7 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	case "backend":
 	case "api":
 	case "retro-board":
+	case "blank-company":
 		jsonError(w, fmt.Sprintf("SubDomain cannot be %s", cr.SubDomain), nil)
 		return
 	}
@@ -116,7 +118,9 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 
 	cookieDomain := c.Config.Frontend
 	if c.CompanyData.SubDomain != "" && !c.Config.Development {
-		cookieDomain = fmt.Sprintf("%s.%s", c.CompanyData.SubDomain, c.Config.Frontend)
+		if c.CompanyData.Enabled {
+			cookieDomain = fmt.Sprintf("%s.%s", c.CompanyData.SubDomain, c.Config.Frontend)
+		}
 	}
 	cookie := http.Cookie{
 		Path:     "/",

@@ -91,7 +91,7 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		a.frontendCookie(w, r, "user", ci.SubDomain, a.UserAccount)
+		a.SetUserCookie(w, r, "user", ci.SubDomain, a.UserAccount)
 
 		if ci.Enabled && !c.Config.Local.Development {
 			http.Redirect(w, r,
@@ -172,7 +172,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 	ua.ID = userid
 
 	a.UserAccount = ua
-	a.frontendCookie(w, r, "user", "", ua)
+	a.SetUserCookie(w, r, "user", "", ua)
 
 	return nil
 }
@@ -208,7 +208,7 @@ func accountError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name, subDomain string, ua UserAccount) {
+func (a Account) SetUserCookie(w http.ResponseWriter, r *http.Request, name, subDomain string, ua UserAccount) {
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, ua)
 	ss, err := t.SignedString([]byte(a.Config.Local.JWTSecret))
 	if err != nil {
