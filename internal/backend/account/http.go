@@ -216,19 +216,22 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name, su
 		return
 	}
 
-	dom := a.Config.Frontend
+	cookieDomain := a.Config.Frontend
 	if subDomain != "" && !a.Config.Development {
-		dom = fmt.Sprintf("%s.%s", subDomain, a.Config.Frontend)
+		cookieDomain = fmt.Sprintf("%s.%s", subDomain, a.Config.Frontend)
 	}
-
-	http.SetCookie(w, &http.Cookie{
+	cookie := http.Cookie{
 		Path:     "/",
-		Domain:   dom,
+		Domain:   cookieDomain,
 		Name:     fmt.Sprintf("retro_%s", name),
 		Value:    ss,
 		MaxAge:   int(time.Hour.Seconds()),
 		Secure:   r.TLS != nil,
 		HttpOnly: false,
 		Expires:  time.Now().Add(time.Hour * 1),
-	})
+	}
+
+	bugLog.Logf("userCookie: %s, %+v", cookieDomain, cookie)
+
+	http.SetCookie(w, &cookie)
 }

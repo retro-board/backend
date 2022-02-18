@@ -118,8 +118,7 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 	if c.CompanyData.SubDomain != "" && !c.Config.Development {
 		cookieDomain = fmt.Sprintf("%s.%s", c.CompanyData.SubDomain, c.Config.Frontend)
 	}
-
-	http.SetCookie(w, &http.Cookie{
+	cookie := http.Cookie{
 		Path:     "/",
 		Domain:   cookieDomain,
 		Name:     fmt.Sprintf("retro_%s", name),
@@ -128,5 +127,9 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 		Secure:   r.TLS != nil,
 		HttpOnly: false,
 		Expires:  time.Now().Add(time.Hour * 1),
-	})
+	}
+
+	bugLog.Logf("companyCookie: %s, %+v", cookieDomain, cookie)
+
+	http.SetCookie(w, &cookie)
 }
