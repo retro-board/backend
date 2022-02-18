@@ -115,6 +115,8 @@ func (k *Kube) CreateSubdomain() error {
 		},
 	}
 
+	bugLog.Logf("creating ingress %+v", ingConfig)
+
 	_, err = clientset.NetworkingV1().Ingresses(k.Namespace).Create(k.CTX, &ingConfig, metav1.CreateOptions{})
 	if err != nil {
 		return bugLog.Error(err)

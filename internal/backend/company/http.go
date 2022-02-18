@@ -133,7 +133,7 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 		Expires:  time.Now().Add(time.Hour * 1),
 	}
 
-	bugLog.Logf("companyCookie: %s, %+v", cookieDomain, cookie)
+	// bugLog.Logf("companyCookie: %s, %+v", cookieDomain, cookie)
 
 	http.SetCookie(w, &cookie)
 }

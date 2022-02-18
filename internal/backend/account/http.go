@@ -231,7 +231,7 @@ func (a Account) SetUserCookie(w http.ResponseWriter, r *http.Request, name, sub
 		Expires:  time.Now().Add(time.Hour * 1),
 	}
 
-	bugLog.Logf("userCookie: %s, %+v", cookieDomain, cookie)
+	// bugLog.Logf("userCookie: %s, %+v", cookieDomain, cookie)
 
 	http.SetCookie(w, &cookie)
 }
