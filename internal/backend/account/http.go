@@ -218,7 +218,7 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name, su
 
 	dom := a.Config.Frontend
 	if subDomain != "" && !a.Config.Development {
-		dom = subDomain
+		dom = fmt.Sprintf("%s.%s", subDomain, a.Config.Frontend)
 	}
 
 	http.SetCookie(w, &http.Cookie{
