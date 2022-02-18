@@ -54,20 +54,24 @@ func (c *Company) CreateCompany(firstTeamName string) error {
 		return errors.New("subdomain already exists")
 	}
 
-	if err := c.addCompanyToDatabase(firstTeamName); err != nil {
-		return bugLog.Error(err)
+	frontend := c.Config.Frontend
+	if c.Config.Development {
+		frontend = "retro-board.it"
 	}
 
-	// if !c.Config.Development {
 	if err := kube.NewKube(
 		c.CTX,
+		c.Config.Development,
 		c.CompanyData.SubDomain,
-		c.Config.Frontend,
+		frontend,
 		c.Config.Kubernetes.ClusterIssuer,
 		c.Config.Kubernetes.Namespace).CreateSubdomain(); err != nil {
 		return bugLog.Error(err)
 	}
-	// }
+
+	if err := c.addCompanyToDatabase(firstTeamName); err != nil {
+		return bugLog.Error(err)
+	}
 
 	return nil
 }

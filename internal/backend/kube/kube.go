@@ -2,17 +2,22 @@ package kube
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"path/filepath"
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 type Kube struct {
-	CTX context.Context
+	CTX         context.Context
+	Development bool
 
 	Subdomain string
 	Domain    string
@@ -21,9 +26,10 @@ type Kube struct {
 	Namespace     string
 }
 
-func NewKube(ctx context.Context, subdomain, domain, clusterIssuer, namespace string) *Kube {
+func NewKube(ctx context.Context, development bool, subdomain, domain, clusterIssuer, namespace string) *Kube {
 	return &Kube{
-		CTX: ctx,
+		CTX:         ctx,
+		Development: development,
 
 		Subdomain: subdomain,
 		Domain:    domain,
@@ -33,8 +39,18 @@ func NewKube(ctx context.Context, subdomain, domain, clusterIssuer, namespace st
 	}
 }
 
+func (k *Kube) getConfig() (*rest.Config, error) {
+	if !k.Development {
+		return rest.InClusterConfig()
+	}
+
+	kubeconfig := flag.String("kubeconfig", filepath.Join(homedir.HomeDir(), ".kube", "config"), "absolute path")
+	flag.Parse()
+	return clientcmd.BuildConfigFromFlags("", *kubeconfig)
+}
+
 func (k *Kube) CreateSubdomain() error {
-	config, err := rest.InClusterConfig()
+	config, err := k.getConfig()
 	if err != nil {
 		return bugLog.Error(err)
 	}
@@ -47,13 +63,20 @@ func (k *Kube) CreateSubdomain() error {
 	ingressClassName := "nginx"
 	pathType := v1.PathTypePrefix
 
-	ing, err := clientset.NetworkingV1().Ingresses(k.Subdomain).Create(k.CTX, &v1.Ingress{
+	ingConfig := v1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Ingress",
+			APIVersion: "networking.k8s.io/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-ingress", k.Subdomain),
 			Namespace: k.Namespace,
 			Annotations: map[string]string{
 				"cert-manager.io/cluster-issuer":             k.ClusterIssuer,
 				"nginx.ingress.kubernetes.io/rewrite-target": "/",
+			},
+			Labels: map[string]string{
+				"app": "frontend",
 			},
 		},
 		Spec: v1.IngressSpec{
@@ -68,7 +91,7 @@ func (k *Kube) CreateSubdomain() error {
 			},
 			Rules: []v1.IngressRule{
 				{
-					Host: k.Subdomain,
+					Host: fmt.Sprintf("%s.%s", k.Subdomain, k.Domain),
 					IngressRuleValue: v1.IngressRuleValue{
 						HTTP: &v1.HTTPIngressRuleValue{
 							Paths: []v1.HTTPIngressPath{
@@ -90,13 +113,11 @@ func (k *Kube) CreateSubdomain() error {
 				},
 			},
 		},
-	}, metav1.CreateOptions{})
-	if err != nil {
-		return bugLog.Error(err)
 	}
 
-	if ing.Status.LoadBalancer.Ingress == nil {
-		return bugLog.Error(fmt.Errorf("no ingress"))
+	_, err = clientset.NetworkingV1().Ingresses(k.Namespace).Create(k.CTX, &ingConfig, metav1.CreateOptions{})
+	if err != nil {
+		return bugLog.Error(err)
 	}
 
 	return nil
