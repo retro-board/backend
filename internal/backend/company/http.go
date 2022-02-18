@@ -1,6 +1,5 @@
 package company
 
-import "C"
 import (
 	"encoding/json"
 	"fmt"
@@ -120,7 +119,7 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 		cookieDomain = fmt.Sprintf("%s.%s", c.CompanyData.SubDomain, c.Config.Frontend)
 	}
 
-	cookie := http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Path:     "/",
 		Domain:   cookieDomain,
 		Name:     fmt.Sprintf("retro_%s", name),
@@ -129,7 +128,5 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 		Secure:   r.TLS != nil,
 		HttpOnly: false,
 		Expires:  time.Now().Add(time.Hour * 1),
-	}
-
-	http.SetCookie(w, &cookie)
+	})
 }

@@ -42,6 +42,8 @@ spec:
               value: "retro_user"
             - name: RDS_DB
               value: "retro-board"
+            - name: CLUSTER_ISSUER
+              value: "acme-prod"
 ---
 apiVersion: v1
 kind: Service

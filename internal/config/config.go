@@ -23,6 +23,7 @@ type Config struct {
 	RDS
 	Vault
 	Keycloak
+	Kubernetes
 }
 
 func Build() (*Config, error) {
@@ -45,6 +46,10 @@ func Build() (*Config, error) {
 	}
 
 	if err := buildLocal(cfg); err != nil {
+		return nil, bugLog.Error(err)
+	}
+
+	if err := buildKubernetes(cfg); err != nil {
 		return nil, bugLog.Error(err)
 	}
 

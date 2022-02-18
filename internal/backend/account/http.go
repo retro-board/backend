@@ -16,13 +16,12 @@ import (
 )
 
 func (a Account) callbackCookie(w http.ResponseWriter, r *http.Request, name, v string) {
-	cookie := http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:   fmt.Sprintf("retro_%s", name),
 		Value:  v,
 		MaxAge: int(time.Hour.Seconds()),
 		Secure: r.TLS != nil,
-	}
-	http.SetCookie(w, &cookie)
+	})
 }
 
 //nolint:gocyclo
@@ -81,6 +80,7 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := company.NewBlankCompany(a.Config)
+	c.CTX = r.Context()
 	c.CompanyData.Domain = getDomain(clm.Email)
 	c.SetCompanyCookie(w, r, "company")
 
@@ -221,7 +221,7 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name, su
 		dom = subDomain
 	}
 
-	cookie := http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Path:     "/",
 		Domain:   dom,
 		Name:     fmt.Sprintf("retro_%s", name),
@@ -230,7 +230,5 @@ func (a Account) frontendCookie(w http.ResponseWriter, r *http.Request, name, su
 		Secure:   r.TLS != nil,
 		HttpOnly: false,
 		Expires:  time.Now().Add(time.Hour * 1),
-	}
-
-	http.SetCookie(w, &cookie)
+	})
 }

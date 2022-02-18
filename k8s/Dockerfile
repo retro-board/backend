@@ -1,5 +1,5 @@
 # Build
-FROM golang:1.17 AS builder
+FROM golang:alpine3.15 AS builder
 
 RUN mkdir -p /home/builder
 WORKDIR /home/builder
@@ -14,11 +14,11 @@ COPY . .
 ARG BUILD
 ARG VERSION
 
-RUN CGO_ENABLED=0 go build -ldflags "-w -s -X github.com/retro-board/backend/main.version=$(VERSION) -X github.com/retro-board/backend/main.build=$(BUILD)" -o ./bin/retro-board -v ./cmd/backend/main.go
+RUN go build -ldflags "-w -s -X github.com/retro-board/backend/main.version=${VERSION} -X github.com/retro-board/backend/main.build=${BUILD}" -o ./bin/retro-board -v ./cmd/backend/main.go
 RUN cp ./bin/retro-board /
 
 # Runner
-FROM alpine AS Runner
+FROM alpine:3.15 AS Runner
 RUN apk update
 RUN apk upgrade
 RUN apk add ca-certificates && update-ca-certificates

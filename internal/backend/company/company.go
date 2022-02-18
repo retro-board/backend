@@ -6,6 +6,7 @@ import (
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/retro-board/backend/internal/backend/kube"
 	"github.com/retro-board/backend/internal/config"
 )
 
@@ -56,6 +57,17 @@ func (c *Company) CreateCompany(firstTeamName string) error {
 	if err := c.addCompanyToDatabase(firstTeamName); err != nil {
 		return bugLog.Error(err)
 	}
+
+	// if !c.Config.Development {
+	if err := kube.NewKube(
+		c.CTX,
+		c.CompanyData.SubDomain,
+		c.Config.Frontend,
+		c.Config.Kubernetes.ClusterIssuer,
+		c.Config.Kubernetes.Namespace).CreateSubdomain(); err != nil {
+		return bugLog.Error(err)
+	}
+	// }
 
 	return nil
 }
