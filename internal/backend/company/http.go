@@ -120,13 +120,14 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 	if c.CompanyData.SubDomain != "" && !c.Config.Development {
 		if c.CompanyData.Enabled {
 			http.SetCookie(w, &http.Cookie{
-				Name:     fmt.Sprintf("retro_%s", name),
-				Value:    "",
-				Domain:   cookieDomain,
 				Path:     "/",
-				Expires:  time.Now().Add(-time.Hour * 24 * 30),
+				Domain:   cookieDomain,
+				Name:     fmt.Sprintf("retro_%s", name),
+				Value:    ss,
+				MaxAge:   int(time.Hour.Seconds()),
 				Secure:   r.TLS != nil,
 				HttpOnly: false,
+				Expires:  time.Now().Add(time.Hour * 1),
 			})
 
 			cookieDomain = fmt.Sprintf("%s.%s", c.CompanyData.SubDomain, c.Config.Frontend)
