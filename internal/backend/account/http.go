@@ -185,6 +185,8 @@ func (a *Account) CompanyInfo(w http.ResponseWriter, r *http.Request, domain str
 		return company.CompanyData{}, err
 	}
 
+	bugLog.Logf("got company data: %+v", c.CompanyData)
+
 	c.SetCompanyCookie(w, r, "company")
 	return c.CompanyData, nil
 }
