@@ -143,10 +143,14 @@ func (c *Company) GetCompanyData() error {
 		return bugLog.Error(err)
 	}
 
+	bugLog.Logf("preset: %+v", c.CompanyData)
+
 	c.CompanyData.Name = name
 	c.CompanyData.SubDomain = subDomain
 	c.CompanyData.Domain = domain
 	c.CompanyData.Enabled = true
+
+	bugLog.Logf("postset: %+v", c.CompanyData)
 
 	return nil
 }

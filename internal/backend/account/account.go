@@ -83,6 +83,7 @@ func (a *Account) CheckDomain(domain string) (bool, error) {
 	c := company.NewBlankCompany(a.Config)
 	c.CTX = a.CTX
 	c.CompanyData.Domain = domain
+
 	return c.CheckDomainExists()
 }
 

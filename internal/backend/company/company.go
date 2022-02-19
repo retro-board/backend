@@ -73,5 +73,7 @@ func (c *Company) CreateCompany(firstTeamName string) error {
 		return bugLog.Error(err)
 	}
 
+	c.CompanyData.Enabled = true
+
 	return nil
 }
