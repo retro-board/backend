@@ -49,6 +49,9 @@ func (k *Kube) getConfig() (*rest.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", *kubeconfig)
 }
 
+// If this doesnt work then you need to run the following commands
+// kubectl create serviceaccount --namespace retro-board retro-board-backend
+// kubectl create clusterrolebinding retro-board-backend --clusterrole=cluster-admin --serviceaccount=retro-board:retro-board-backend
 func (k *Kube) CreateSubdomain() error {
 	config, err := k.getConfig()
 	if err != nil {

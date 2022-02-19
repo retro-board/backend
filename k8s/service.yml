@@ -16,6 +16,7 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: retro-board-backend
       nodeSelector:
         cputype: amd64
       imagePullSecrets:
