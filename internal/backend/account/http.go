@@ -82,7 +82,7 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	c := company.NewBlankCompany(a.Config)
 	c.CTX = r.Context()
 	c.CompanyData.Domain = getDomain(clm.Email)
-	c.SetCompanyCookie(w, r, "company")1
+	c.SetCompanyCookie(w, r, "company")
 
 	if exists {
 		ci, err := a.CompanyInfo(w, r, getDomain(clm.Email))
