@@ -21,6 +21,7 @@ func (a Account) callbackCookie(w http.ResponseWriter, r *http.Request, name, v 
 		Value:  v,
 		MaxAge: int(time.Hour.Seconds()),
 		Secure: r.TLS != nil,
+		Domain: r.Host,
 	})
 }
 
