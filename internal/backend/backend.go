@@ -72,6 +72,7 @@ func (b Backend) Start() error {
 		r.Get("/callback", account.NewAccount(b.Config).CallbackHandler)
 	})
 
+	// Start server
 	bugLog.Local().Infof("listening on %d\n", b.Config.Local.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", b.Config.Local.Port), r); err != nil {
 		return bugLog.Errorf("port failed: %+v", err)
