@@ -123,6 +123,12 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 		a.Config.Keycloak.Password,
 		a.Config.Keycloak.Hostname,
 		a.Config.Keycloak.RealmName,
+
+		keycloak.KeycloakRoles{
+			User:   a.Config.Keycloak.KeycloakRoles.SprintUser,
+			Leader: a.Config.Keycloak.KeycloakRoles.SprintLeader,
+			Owner:  a.Config.Keycloak.KeycloakRoles.CompanyOwner,
+		},
 	)
 
 	ua := UserAccount{
@@ -131,46 +137,30 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 		Name: clm.Name,
 	}
 
-	roles, err := kc.GetUserRoles(ua.ID)
+	userid, err := encrypt.NewEncrypt(a.Config.Local.TokenSeed).Encrypt(ua.ID)
 	if err != nil {
 		return err
 	}
-	if len(roles) > 0 {
-		for _, role := range roles {
-			switch *role.Name {
-			case a.Config.Keycloak.KeycloakRoles.CompanyOwner:
-				ua.Role = a.Config.Keycloak.KeycloakRoles.CompanyOwner
-				a.UserAccount = ua
-
-			case a.Config.Keycloak.KeycloakRoles.SprintLeader:
-				ua.Role = a.Config.Keycloak.KeycloakRoles.SprintLeader
-				a.UserAccount = ua
-
-			case a.Config.Keycloak.KeycloakRoles.SprintUser:
-				ua.Role = a.Config.Keycloak.KeycloakRoles.SprintUser
-				a.UserAccount = ua
-			}
-		}
-	}
+	ua.ID = userid
 
 	exists, err := a.CheckDomain(getDomain(clm.Email))
 	if err != nil {
 		return err
 	}
 	if !exists {
-		if err := kc.SetUserOwner(clm.Subject, ua.Role); err != nil {
+		if err := kc.SetUserOwner(clm.Subject); err != nil {
 			accountError(w, errors.New("Failed to set user owner: "+err.Error()))
 			return err
 		}
 		ua.Role = a.Config.Keycloak.KeycloakRoles.CompanyOwner
-		a.UserAccount = ua
+	} else {
+		role, err := kc.GetUserRole(clm.Subject)
+		if err != nil {
+			accountError(w, errors.New("failed to get uer role: "+err.Error()))
+			return err
+		}
+		ua.Role = role
 	}
-
-	userid, err := encrypt.NewEncrypt(a.Config.Local.TokenSeed).Encrypt(ua.ID)
-	if err != nil {
-		return err
-	}
-	ua.ID = userid
 
 	a.UserAccount = ua
 	a.SetUserCookie(w, r, "user", "", ua)
@@ -186,7 +176,7 @@ func (a *Account) CompanyInfo(w http.ResponseWriter, r *http.Request, domain str
 		return company.CompanyData{}, err
 	}
 
-	bugLog.Logf("got company data: %+v", c.CompanyData)
+	// bugLog.Logf("got company data: %+v", c.CompanyData)
 
 	c.SetCompanyCookie(w, r, "company")
 	return c.CompanyData, nil
@@ -234,7 +224,7 @@ func (a Account) SetUserCookie(w http.ResponseWriter, r *http.Request, name, sub
 		Expires:  time.Now().Add(time.Hour * 1),
 	}
 
-	bugLog.Logf("userCookie: %s, %+v", cookieDomain, cookie)
+	// bugLog.Logf("userCookie: %s, %+v", cookieDomain, cookie)
 
 	http.SetCookie(w, &cookie)
 }

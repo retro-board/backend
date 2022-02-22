@@ -70,6 +70,12 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		c.Config.Keycloak.Password,
 		c.Config.Keycloak.Hostname,
 		c.Config.Keycloak.RealmName,
+
+		keycloak.KeycloakRoles{
+			User:   c.Config.Keycloak.KeycloakRoles.SprintUser,
+			Leader: c.Config.Keycloak.KeycloakRoles.SprintLeader,
+			Owner:  c.Config.Keycloak.KeycloakRoles.CompanyOwner,
+		},
 	)
 
 	userId, err := encrypt.NewEncrypt(c.Config.Local.TokenSeed).Decrypt(r.Header.Get("X-User-Token"))
@@ -144,7 +150,7 @@ func (c *Company) SetCompanyCookie(w http.ResponseWriter, r *http.Request, name 
 		Expires:  time.Now().Add(time.Hour * 1),
 	}
 
-	bugLog.Logf("companyCookie: %s, %+v", cookieDomain, cookie)
+	// bugLog.Logf("companyCookie: %s, %+v", cookieDomain, cookie)
 
 	http.SetCookie(w, &cookie)
 }

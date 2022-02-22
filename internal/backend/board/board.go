@@ -35,7 +35,13 @@ func (b *Board) GetAll(subDomain, roleName, userId string) ([]BoardInfo, error) 
 		b.Config.Keycloak.Username,
 		b.Config.Keycloak.Password,
 		b.Config.Keycloak.Hostname,
-		b.Config.Keycloak.RealmName).IsAllowed(userId, roleName, "board:list"); err != nil {
+		b.Config.Keycloak.RealmName,
+
+		keycloak.KeycloakRoles{
+			User:   b.Config.Keycloak.KeycloakRoles.SprintUser,
+			Leader: b.Config.Keycloak.KeycloakRoles.SprintLeader,
+			Owner:  b.Config.Keycloak.KeycloakRoles.CompanyOwner,
+		}).IsAllowed(userId, roleName, "board:list"); err != nil {
 		return nil, err
 	} else if !allowed {
 		return nil, nil

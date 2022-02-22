@@ -72,6 +72,73 @@ func (b Backend) Start() error {
 		r.Get("/callback", account.NewAccount(b.Config).CallbackHandler)
 	})
 
+	// Tester
+	// r.Route("/tester", func(r chi.Router) {
+	// 	r.Get("/userid", func(w http.ResponseWriter, r *http.Request) {
+	// 		id := r.URL.Query().Get("id")
+	//
+	// 		enc, err := encrypt.NewEncrypt(b.Config.Local.TokenSeed).Encrypt(id)
+	// 		if err != nil {
+	// 			bugLog.Infof("Error: %s", err.Error())
+	// 			w.Header().Set("Content-Type", "application/json")
+	// 			http.Error(w, "Error", http.StatusInternalServerError)
+	// 			return
+	// 		}
+	//
+	// 		w.Header().Set("Content-Type", "text/plain")
+	// 		w.WriteHeader(http.StatusOK)
+	// 		w.Write([]byte(enc))
+	// 		return
+	// 	})
+	// 	r.Get("/rolecheck", func(w http.ResponseWriter, r *http.Request) {
+	// 		role := r.URL.Query().Get("role")
+	// 		perm := r.URL.Query().Get("perm")
+	// 		user := r.URL.Query().Get("user")
+	//
+	// 		userId, err := encrypt.NewEncrypt(b.Config.Local.TokenSeed).Decrypt(user)
+	// 		if err != nil {
+	// 			bugLog.Infof("Error: %s", err.Error())
+	// 			w.Header().Set("Content-Type", "application/json")
+	// 			http.Error(w, "Error", http.StatusInternalServerError)
+	// 			return
+	// 		}
+	//
+	// 		kc := keycloak.CreateKeycloak(
+	// 			r.Context(),
+	// 			b.Config.Keycloak.ClientID,
+	// 			b.Config.Keycloak.ClientSecret,
+	// 			b.Config.Keycloak.Username,
+	// 			b.Config.Keycloak.Password,
+	// 			b.Config.Keycloak.Hostname,
+	// 			b.Config.Keycloak.RealmName,
+	// 			keycloak.KeycloakRoles{
+	// 				User:   b.Config.Keycloak.SprintUser,
+	// 				Leader: b.Config.Keycloak.SprintLeader,
+	// 				Owner:  b.Config.Keycloak.CompanyOwner,
+	// 			},
+	// 		)
+	//
+	// 		can, err := kc.IsAllowed(userId, role, perm)
+	// 		if err != nil {
+	// 			bugLog.Infof("Error: %s", err.Error())
+	// 			w.Header().Set("Content-Type", "application/json")
+	// 			http.Error(w, "Error", http.StatusInternalServerError)
+	// 			return
+	// 		}
+	//
+	// 		if !can {
+	// 			w.Header().Set("Content-Type", "application/json")
+	// 			http.Error(w, "Nope", http.StatusForbidden)
+	// 			return
+	// 		}
+	//
+	// 		w.Header().Set("Content-Type", "text/plain")
+	// 		w.WriteHeader(http.StatusOK)
+	// 		w.Write([]byte("Fine"))
+	// 		return
+	// 	})
+	// })
+
 	// Start server
 	bugLog.Local().Infof("listening on %d\n", b.Config.Local.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", b.Config.Local.Port), r); err != nil {
