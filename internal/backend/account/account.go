@@ -27,9 +27,11 @@ type Account struct {
 }
 
 type UserAccount struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Role string `json:"role"`
+	ID         string   `json:"id"`
+	OriginalID string   `json:"-"`
+	Name       string   `json:"name"`
+	Role       string   `json:"role"`
+	Perms      []string `json:"perms"`
 
 	jwt.RegisteredClaims
 }

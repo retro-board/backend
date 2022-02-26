@@ -132,9 +132,11 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 	)
 
 	ua := UserAccount{
-		ID:   clm.Subject,
-		Role: a.Config.Keycloak.KeycloakRoles.SprintUser,
-		Name: clm.Name,
+		ID:         clm.Subject,
+		OriginalID: clm.Subject,
+		Role:       a.Config.Keycloak.KeycloakRoles.SprintUser,
+		Name:       clm.Name,
+		Perms:      []string{},
 	}
 
 	userid, err := encrypt.NewEncrypt(a.Config.Local.TokenSeed).Encrypt(ua.ID)
@@ -161,6 +163,12 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 		}
 		ua.Role = role
 	}
+
+	userPerms, err := a.GetUserPerms(ua.OriginalID)
+	if err != nil {
+		return err
+	}
+	ua.Perms = userPerms
 
 	a.UserAccount = ua
 	a.SetUserCookie(w, r, "user", "", ua)
@@ -227,4 +235,22 @@ func (a Account) SetUserCookie(w http.ResponseWriter, r *http.Request, name, sub
 	// bugLog.Logf("userCookie: %s, %+v", cookieDomain, cookie)
 
 	http.SetCookie(w, &cookie)
+}
+
+func (a *Account) GetUserPerms(userID string) ([]string, error) {
+	kc := keycloak.CreateKeycloak(
+		a.CTX,
+		a.Config.Keycloak.ClientID,
+		a.Config.Keycloak.ClientSecret,
+		a.Config.Keycloak.Username,
+		a.Config.Keycloak.Password,
+		a.Config.Keycloak.Hostname,
+		a.Config.Keycloak.RealmName,
+		keycloak.KeycloakRoles{})
+	perms, err := kc.GetAllUserScopes(userID)
+	if err != nil {
+		return []string{}, nil
+	}
+
+	return perms, nil
 }

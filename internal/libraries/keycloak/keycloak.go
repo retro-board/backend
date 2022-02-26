@@ -306,3 +306,116 @@ func (k *Keycloak) GetResourceID(resourceName string) (string, error) {
 
 	return *res[0].ID, nil
 }
+
+func (k *Keycloak) GetAllUserScopes(userId string) ([]string, error) {
+	_, token, err := k.GetClientAndToken()
+	if err != nil {
+		return []string{}, bugLog.Error(err)
+	}
+
+	idOfClient, err := k.GetIDOfClient()
+	if err != nil {
+		return []string{}, bugLog.Error(err)
+	}
+	k.IdOfClient = idOfClient
+
+	type reqStruct struct {
+		Resources []struct {
+			Scopes []string `json:"scopes"`
+		} `json:"resources"`
+		Context struct {
+			Attributes struct{} `json:"attributes"`
+		} `json:"context"`
+		RoleIDs      []string `json:"roleIds"`
+		ClientID     string   `json:"clientId"`
+		UserId       string   `json:"userId"`
+		Entitlements bool     `json:"entitlements"`
+	}
+
+	ar := reqStruct{
+		Resources: []struct {
+			Scopes []string `json:"scopes"`
+		}{
+			{
+				Scopes: []string{},
+			},
+		},
+		Context: struct {
+			Attributes struct{} `json:"attributes"`
+		}{
+			Attributes: struct{}{},
+		},
+		RoleIDs:      []string{},
+		ClientID:     idOfClient,
+		UserId:       userId,
+		Entitlements: false,
+	}
+
+	j, err := json.Marshal(ar)
+	if err != nil {
+		return []string{}, bugLog.Error(err)
+	}
+	fmt.Printf("%s", j)
+
+	hc := &http.Client{}
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf(
+			"%s/auth/admin/realms/%s/clients/%s/authz/resource-server/policy/evaluate",
+			k.HostName,
+			k.RealmName,
+			idOfClient), bytes.NewBuffer(j))
+	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := hc.Do(req)
+	if err != nil {
+		return []string{}, bugLog.Error(err)
+	}
+	defer resp.Body.Close()
+
+	type respFormat struct {
+		Results []struct {
+			Resource struct {
+				Name string `json:"name"`
+				ID   string `json:"_id"`
+			} `json:"resource"`
+			Scopes []struct {
+				Name string `json:"name"`
+				ID   string `json:"_id"`
+			} `json:"scopes"`
+			Policies []struct {
+				Policy struct {
+					Name string `json:"name"`
+					ID   string `json:"id"`
+				} `json:"policy"`
+				Status string `json:"status"`
+			} `json:"policies"`
+			Status string `json:"status"`
+		} `json:"results"`
+		Status string `json:"status"`
+	}
+
+	result := respFormat{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return []string{}, bugLog.Error(err)
+	}
+
+	if len(result.Results) == 0 {
+		return []string{}, nil
+	}
+
+	resultSet := []string{}
+
+	for _, res := range result.Results {
+		scopes := res.Scopes
+		policies := res.Policies
+
+		if len(scopes) == 1 && len(policies) == 1 {
+			if policies[0].Status == "PERMIT" {
+				resultSet = append(resultSet, scopes[0].Name)
+			}
+		}
+	}
+
+	return resultSet, nil
+}
