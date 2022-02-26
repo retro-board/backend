@@ -165,7 +165,7 @@ func (k *Keycloak) GetUserRole(userId string) (string, error) {
 	return k.Roles.User, nil
 }
 
-func (k *Keycloak) IsAllowed(userId, roleName, permissionName string) (bool, error) {
+func (k *Keycloak) IsAllowed(userId, userRole, permissionName string) (bool, error) {
 	_, token, err := k.GetClientAndToken()
 	if err != nil {
 		return false, bugLog.Error(err)
@@ -199,7 +199,7 @@ func (k *Keycloak) IsAllowed(userId, roleName, permissionName string) (bool, err
 	}
 
 	ar := AllowedRequest{
-		RoleIDs:  []string{roleName},
+		RoleIDs:  []string{userRole},
 		ClientID: idOfClient,
 		UserId:   userId,
 		Resources: []AllowedResources{

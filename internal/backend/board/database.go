@@ -2,6 +2,7 @@ package board
 
 import (
 	"fmt"
+	"net/url"
 
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 	"github.com/jackc/pgx/v4"
@@ -54,6 +55,11 @@ func (b *Board) GetAllBoards(subDomain string) ([]BoardInfo, error) {
 			return boards, bugLog.Error(err)
 		}
 		boards = append(boards, board)
+	}
+
+	// safe link the name
+	for i := range boards {
+		boards[i].LinkName = url.QueryEscape(boards[i].Name)
 	}
 
 	return boards, nil

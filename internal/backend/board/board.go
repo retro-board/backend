@@ -16,6 +16,7 @@ type Board struct {
 type BoardInfo struct {
 	ID              int    `json:"id"`
 	Name            string `json:"name"`
+	LinkName        string `json:"link_name"`
 	RetrosCompleted int    `json:"retros_completed"`
 	TeamScore       int    `json:"team_score"`
 	PreviousScore   int    `json:"previous_score"`
@@ -27,8 +28,8 @@ func NewBoard(config *config.Config) *Board {
 	}
 }
 
-func (b *Board) GetAll(subDomain, roleName, userId string) ([]BoardInfo, error) {
-	if allowed, err := keycloak.CreateKeycloak(
+func (b *Board) GetAll(subDomain, userId string) ([]BoardInfo, error) {
+	kc := keycloak.CreateKeycloak(
 		b.CTX,
 		b.Config.Keycloak.ClientID,
 		b.Config.Keycloak.ClientSecret,
@@ -41,7 +42,13 @@ func (b *Board) GetAll(subDomain, roleName, userId string) ([]BoardInfo, error) 
 			User:   b.Config.Keycloak.KeycloakRoles.SprintUser,
 			Leader: b.Config.Keycloak.KeycloakRoles.SprintLeader,
 			Owner:  b.Config.Keycloak.KeycloakRoles.CompanyOwner,
-		}).IsAllowed(userId, roleName, "board:list"); err != nil {
+		})
+	userRole, err := kc.GetUserRole(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if allowed, err := kc.IsAllowed(userId, userRole, "board:list"); err != nil {
 		return nil, err
 	} else if !allowed {
 		return nil, nil
