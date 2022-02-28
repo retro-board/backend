@@ -52,6 +52,20 @@ func (b Board) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(boards) == 0 {
+		a := struct {
+			Boards []Board `json:"boards"`
+		}{
+			Boards: []Board{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(a); err != nil {
+			jsonError(w, "Error encoding boards", err)
+			return
+		}
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(boards); err != nil {
 		jsonError(w, "Error encoding boards", err)
