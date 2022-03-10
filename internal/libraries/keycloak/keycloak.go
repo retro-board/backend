@@ -33,6 +33,57 @@ type Keycloak struct {
 	Roles KeycloakRoles
 }
 
+type KeycloakRespFormat struct {
+	Results []struct {
+		Resource struct {
+			Name string `json:"name"`
+			ID   string `json:"_id"`
+		} `json:"resource"`
+		Scopes []struct {
+			Name string `json:"name"`
+			ID   string `json:"_id"`
+		} `json:"scopes"`
+		Policies []struct {
+			Policy struct {
+				Name string `json:"name"`
+				ID   string `json:"id"`
+			} `json:"policy"`
+			Status string `json:"status"`
+		} `json:"policies"`
+		Status string `json:"status"`
+	} `json:"results"`
+	Status string `json:"status"`
+}
+
+type AllScopesStructure struct {
+	Resources []struct {
+		Scopes []string `json:"scopes"`
+	} `json:"resources"`
+	Context struct {
+		Attributes struct{} `json:"attributes"`
+	} `json:"context"`
+	RoleIDs      []string `json:"roleIds"`
+	ClientID     string   `json:"clientId"`
+	UserID       string   `json:"userId"`
+	Entitlements bool     `json:"entitlements"`
+}
+
+type OwnerStruct struct {
+	ID string `json:"id"`
+}
+type AllowedResources struct {
+	Name  string      `json:"name"`
+	Owner OwnerStruct `json:"owner"`
+	ID    string      `json:"_id"`
+}
+
+type AllowedRequest struct {
+	Resources []AllowedResources `json:"resources"`
+	RoleIDs   []string           `json:"roleIds"`
+	ClientID  string             `json:"clientId"`
+	UserID    string             `json:"userId"`
+}
+
 func CreateKeycloak(ctx context.Context, clientID, clientSecret, userName, password, hostName, realmName string, roles KeycloakRoles) *Keycloak {
 	return &Keycloak{
 		CTX: ctx,
@@ -189,22 +240,6 @@ func (k *Keycloak) IsAllowed(userID, userRole, permissionName string) (bool, err
 		return false, bugLog.Error(err)
 	}
 
-	type OwnerStruct struct {
-		ID string `json:"id"`
-	}
-	type AllowedResources struct {
-		Name  string      `json:"name"`
-		Owner OwnerStruct `json:"owner"`
-		ID    string      `json:"_id"`
-	}
-
-	type AllowedRequest struct {
-		Resources []AllowedResources `json:"resources"`
-		RoleIDs   []string           `json:"roleIds"`
-		ClientID  string             `json:"clientId"`
-		UserID    string             `json:"userId"`
-	}
-
 	ar := AllowedRequest{
 		RoleIDs:  []string{userRole},
 		ClientID: idOfClient,
@@ -219,58 +254,9 @@ func (k *Keycloak) IsAllowed(userID, userRole, permissionName string) (bool, err
 			},
 		},
 	}
-	j, err := json.Marshal(ar)
-	if err != nil {
-		return false, bugLog.Error(err)
-	}
 
-	hc := &http.Client{}
-	req, err := http.NewRequest(
-		"POST",
-		fmt.Sprintf(
-			"%s/auth/admin/realms/%s/clients/%s/authz/resource-server/policy/evaluate",
-			k.HostName,
-			k.RealmName,
-			idOfClient), bytes.NewBuffer(j))
+	result, err := k.sendRequest(ar, token)
 	if err != nil {
-		return false, bugLog.Error(err)
-	}
-	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := hc.Do(req)
-	if err != nil {
-		return false, bugLog.Error(err)
-	}
-	defer resp.Body.Close()
-
-	type respFormat struct {
-		Results []struct {
-			Resource struct {
-				Name string `json:"name"`
-				ID   string `json:"_id"`
-			} `json:"resource"`
-			Scopes []struct {
-				Name string `json:"name"`
-				ID   string `json:"_id"`
-			} `json:"scopes"`
-			Policies []struct {
-				Policy struct {
-					Name string `json:"name"`
-					ID   string `json:"id"`
-				} `json:"policy"`
-				Status string `json:"status"`
-			} `json:"policies"`
-			Status string `json:"status"`
-		} `json:"results"`
-		Status string `json:"status"`
-	}
-
-	// var testResult interface{}
-	// if err := json.NewDecoder(resp.Body).Decode(&testResult); err != nil {
-	// 	return false, bugLog.Error(err)
-	// }
-	result := respFormat{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return false, bugLog.Error(err)
 	}
 
@@ -281,17 +267,6 @@ func (k *Keycloak) IsAllowed(userID, userRole, permissionName string) (bool, err
 	if result.Status == "PERMIT" {
 		return true, nil
 	}
-
-	// for _, res := range result.Results {
-	// 	if len(res.Policies) == 0 {
-	// 		return false, nil
-	// 	}
-	// 	for _, pol := range res.Policies {
-	// 		if pol.Status == "PERMIT" {
-	// 			return true, nil
-	// 		}
-	// 	}
-	// }
 
 	return false, nil
 }
@@ -320,32 +295,31 @@ func (k *Keycloak) GetResourceID(resourceName string) (string, error) {
 	return *res[0].ID, nil
 }
 
-func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
+func (k *Keycloak) getTokenAndIDofClient() (*gocloak.JWT, string, error) {
+	jwt := &gocloak.JWT{}
+
 	_, token, err := k.GetClientAndToken()
 	if err != nil {
-		return []string{}, bugLog.Error(err)
+		return jwt, "", bugLog.Error(err)
 	}
+	jwt = token
 
 	idOfClient, err := k.GetIDOfClient()
+	if err != nil {
+		return jwt, "", bugLog.Error(err)
+	}
+
+	return jwt, idOfClient, nil
+}
+
+func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
+	token, idOfClient, err := k.getTokenAndIDofClient()
 	if err != nil {
 		return []string{}, bugLog.Error(err)
 	}
 	k.IDOfClient = idOfClient
 
-	type reqStruct struct {
-		Resources []struct {
-			Scopes []string `json:"scopes"`
-		} `json:"resources"`
-		Context struct {
-			Attributes struct{} `json:"attributes"`
-		} `json:"context"`
-		RoleIDs      []string `json:"roleIds"`
-		ClientID     string   `json:"clientId"`
-		UserID       string   `json:"userId"`
-		Entitlements bool     `json:"entitlements"`
-	}
-
-	ar := reqStruct{
+	ar := AllScopesStructure{
 		Resources: []struct {
 			Scopes []string `json:"scopes"`
 		}{
@@ -364,55 +338,8 @@ func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
 		Entitlements: false,
 	}
 
-	j, err := json.Marshal(ar)
+	result, err := k.sendRequest(ar, token)
 	if err != nil {
-		return []string{}, bugLog.Error(err)
-	}
-	fmt.Printf("%s", j)
-
-	hc := &http.Client{}
-	req, err := http.NewRequest(
-		"POST",
-		fmt.Sprintf(
-			"%s/auth/admin/realms/%s/clients/%s/authz/resource-server/policy/evaluate",
-			k.HostName,
-			k.RealmName,
-			idOfClient), bytes.NewBuffer(j))
-	if err != nil {
-		return []string{}, bugLog.Error(err)
-	}
-	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := hc.Do(req)
-	if err != nil {
-		return []string{}, bugLog.Error(err)
-	}
-	defer resp.Body.Close()
-
-	type respFormat struct {
-		Results []struct {
-			Resource struct {
-				Name string `json:"name"`
-				ID   string `json:"_id"`
-			} `json:"resource"`
-			Scopes []struct {
-				Name string `json:"name"`
-				ID   string `json:"_id"`
-			} `json:"scopes"`
-			Policies []struct {
-				Policy struct {
-					Name string `json:"name"`
-					ID   string `json:"id"`
-				} `json:"policy"`
-				Status string `json:"status"`
-			} `json:"policies"`
-			Status string `json:"status"`
-		} `json:"results"`
-		Status string `json:"status"`
-	}
-
-	result := respFormat{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return []string{}, bugLog.Error(err)
 	}
 
@@ -434,4 +361,38 @@ func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
 	}
 
 	return resultSet, nil
+}
+
+func (k *Keycloak) sendRequest(request interface{}, token *gocloak.JWT) (*KeycloakRespFormat, error) {
+	ret := &KeycloakRespFormat{}
+
+	j, err := json.Marshal(request)
+	if err != nil {
+		return ret, bugLog.Error(err)
+	}
+
+	hc := &http.Client{}
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf(
+			"%s/auth/admin/realms/%s/clients/%s/authz/resource-server/policy/evaluate",
+			k.HostName,
+			k.RealmName,
+			k.IDOfClient), bytes.NewBuffer(j))
+	if err != nil {
+		return ret, bugLog.Error(err)
+	}
+	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := hc.Do(req)
+	if err != nil {
+		return ret, bugLog.Error(err)
+	}
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+		return ret, bugLog.Error(err)
+	}
+
+	return ret, nil
 }

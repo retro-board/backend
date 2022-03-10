@@ -34,6 +34,8 @@ func jsonError(w http.ResponseWriter, msg string, errs error) {
 	}
 }
 
+// TODO: fix the complexity of this function
+//nolint:gocyclo
 func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	var cr CreateRequest
 	c.CTX = r.Context()
