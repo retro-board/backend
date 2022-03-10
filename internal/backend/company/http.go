@@ -78,13 +78,13 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
-	userId, err := encrypt.NewEncrypt(c.Config.Local.TokenSeed).Decrypt(r.Header.Get("X-User-Token"))
+	userID, err := encrypt.NewEncrypt(c.Config.Local.TokenSeed).Decrypt(r.Header.Get("X-User-Token"))
 	if err != nil {
 		jsonError(w, "Invalid request payload", err)
 		return
 	}
 
-	allowed, err := kc.IsAllowed(userId, cr.UserRole, "company:create")
+	allowed, err := kc.IsAllowed(userID, cr.UserRole, "company:create")
 	if err != nil {
 		jsonError(w, "Invalid request payload", err)
 		return

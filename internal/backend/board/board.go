@@ -28,7 +28,7 @@ func NewBoard(config *config.Config) *Board {
 	}
 }
 
-func (b *Board) GetAll(subDomain, userId string) ([]BoardInfo, error) {
+func (b *Board) GetAll(subDomain, userID string) ([]BoardInfo, error) {
 	kc := keycloak.CreateKeycloak(
 		b.CTX,
 		b.Config.Keycloak.ClientID,
@@ -43,12 +43,12 @@ func (b *Board) GetAll(subDomain, userId string) ([]BoardInfo, error) {
 			Leader: b.Config.Keycloak.KeycloakRoles.SprintLeader,
 			Owner:  b.Config.Keycloak.KeycloakRoles.CompanyOwner,
 		})
-	userRole, err := kc.GetUserRole(userId)
+	userRole, err := kc.GetUserRole(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if allowed, err := kc.IsAllowed(userId, userRole, "board:list"); err != nil {
+	if allowed, err := kc.IsAllowed(userID, userRole, "board:list"); err != nil {
 		return nil, err
 	} else if !allowed {
 		return nil, nil

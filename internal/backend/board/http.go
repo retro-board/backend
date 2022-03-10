@@ -36,17 +36,17 @@ func (b Board) GetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (b Board) GetAllHandler(w http.ResponseWriter, r *http.Request) {
-	var subdomain string = r.URL.Query().Get("subdomain")
+	var subdomain = r.URL.Query().Get("subdomain")
 	b.CTX = r.Context()
 
 	userToken := r.Header.Get("X-User-Token")
-	userId, err := encrypt.NewEncrypt(b.Config.Local.TokenSeed).Decrypt(userToken)
+	userID, err := encrypt.NewEncrypt(b.Config.Local.TokenSeed).Decrypt(userToken)
 	if err != nil {
 		jsonError(w, "Invalid token", err)
 		return
 	}
 
-	boards, err := b.GetAll(subdomain, userId)
+	boards, err := b.GetAll(subdomain, userID)
 	if err != nil {
 		jsonError(w, "Error getting boards", err)
 		return

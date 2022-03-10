@@ -37,16 +37,16 @@ func (c *Company) addCompanyToDatabase(firstTeamName string) error {
 		}
 	}()
 
-	var companyId int
+	var companyID int
 	if err := conn.QueryRow(c.CTX,
 		`INSERT INTO company (name, subdomain, domain) VALUES ($1, $2, $3) RETURNING id`,
 		c.CompanyData.Name,
 		c.CompanyData.SubDomain,
-		c.CompanyData.Domain).Scan(&companyId); err != nil {
+		c.CompanyData.Domain).Scan(&companyID); err != nil {
 		return bugLog.Error(err)
 	}
 
-	c.CompanyData.ID = companyId
+	c.CompanyData.ID = companyID
 	c.CompanyData.Enabled = true
 
 	if err := c.addBoardToDatabase(firstTeamName); err != nil {

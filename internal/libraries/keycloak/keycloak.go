@@ -22,7 +22,7 @@ type Keycloak struct {
 
 	ClientID     string
 	ClientSecret string
-	IdOfClient   string
+	IDOfClient   string
 
 	UserName string
 	Password string
@@ -67,6 +67,9 @@ func (k *Keycloak) GetIDOfClient() (string, error) {
 	clients, err := client.GetClients(k.CTX, token.AccessToken, k.RealmName, gocloak.GetClientsParams{
 		ClientID: &k.ClientID,
 	})
+	if err != nil {
+		return "", bugLog.Error(err)
+	}
 	if len(clients) == 0 {
 		return "", bugLog.Error("no client found")
 	}
@@ -90,11 +93,11 @@ func (k *Keycloak) GetClientAndToken() (gocloak.GoCloak, *gocloak.JWT, error) {
 	return client, token, nil
 }
 
-func (k *Keycloak) SetUserOwner(userId string) error {
-	return k.setRole(userId, k.Roles.Owner)
+func (k *Keycloak) SetUserOwner(userID string) error {
+	return k.setRole(userID, k.Roles.Owner)
 }
 
-func (k *Keycloak) setRole(userId, roleName string) error {
+func (k *Keycloak) setRole(userID, roleName string) error {
 	client, token, err := k.GetClientAndToken()
 	if err != nil {
 		return bugLog.Error(err)
@@ -103,11 +106,14 @@ func (k *Keycloak) setRole(userId, roleName string) error {
 	realmRoles, err := client.GetRealmRoles(k.CTX, token.AccessToken, k.RealmName, gocloak.GetRoleParams{
 		Search: &roleName,
 	})
+	if err != nil {
+		return bugLog.Error(err)
+	}
 	if len(realmRoles) == 0 {
 		return bugLog.Error("no role found")
 	}
 
-	if err := client.AddRealmRoleToUser(k.CTX, token.AccessToken, k.RealmName, userId, []gocloak.Role{
+	if err := client.AddRealmRoleToUser(k.CTX, token.AccessToken, k.RealmName, userID, []gocloak.Role{
 		{
 			ID:          realmRoles[0].ID,
 			Name:        realmRoles[0].Name,
@@ -120,21 +126,21 @@ func (k *Keycloak) setRole(userId, roleName string) error {
 	return nil
 }
 
-func (k *Keycloak) SetUserUser(userId string) error {
-	return k.setRole(userId, k.Roles.User)
+func (k *Keycloak) SetUserUser(userID string) error {
+	return k.setRole(userID, k.Roles.User)
 }
 
-func (k *Keycloak) SetUserLeader(userId string) error {
-	return k.setRole(userId, k.Roles.Leader)
+func (k *Keycloak) SetUserLeader(userID string) error {
+	return k.setRole(userID, k.Roles.Leader)
 }
 
-func (k *Keycloak) GetUserRoles(userId string) ([]*gocloak.Role, error) {
+func (k *Keycloak) GetUserRoles(userID string) ([]*gocloak.Role, error) {
 	client, token, err := k.GetClientAndToken()
 	if err != nil {
 		return nil, bugLog.Error(err)
 	}
 
-	roles, err := client.GetRealmRolesByUserID(k.CTX, token.AccessToken, k.RealmName, userId)
+	roles, err := client.GetRealmRolesByUserID(k.CTX, token.AccessToken, k.RealmName, userID)
 	if err != nil {
 		return nil, bugLog.Error(err)
 	}
@@ -142,8 +148,8 @@ func (k *Keycloak) GetUserRoles(userId string) ([]*gocloak.Role, error) {
 	return roles, nil
 }
 
-func (k *Keycloak) GetUserRole(userId string) (string, error) {
-	roles, err := k.GetUserRoles(userId)
+func (k *Keycloak) GetUserRole(userID string) (string, error) {
+	roles, err := k.GetUserRoles(userID)
 	if err != nil {
 		return "", bugLog.Error(err)
 	}
@@ -153,11 +159,12 @@ func (k *Keycloak) GetUserRole(userId string) (string, error) {
 	}
 
 	for _, role := range roles {
-		if *role.Name == k.Roles.User {
+		switch *role.Name {
+		case k.Roles.User:
 			return k.Roles.User, nil
-		} else if *role.Name == k.Roles.Leader {
+		case k.Roles.Leader:
 			return k.Roles.Leader, nil
-		} else if *role.Name == k.Roles.Owner {
+		case k.Roles.Owner:
 			return k.Roles.Owner, nil
 		}
 	}
@@ -165,7 +172,7 @@ func (k *Keycloak) GetUserRole(userId string) (string, error) {
 	return k.Roles.User, nil
 }
 
-func (k *Keycloak) IsAllowed(userId, userRole, permissionName string) (bool, error) {
+func (k *Keycloak) IsAllowed(userID, userRole, permissionName string) (bool, error) {
 	_, token, err := k.GetClientAndToken()
 	if err != nil {
 		return false, bugLog.Error(err)
@@ -175,7 +182,7 @@ func (k *Keycloak) IsAllowed(userId, userRole, permissionName string) (bool, err
 	if err != nil {
 		return false, bugLog.Error(err)
 	}
-	k.IdOfClient = idOfClient
+	k.IDOfClient = idOfClient
 
 	res, err := k.GetResourceID(permissionName)
 	if err != nil {
@@ -195,13 +202,13 @@ func (k *Keycloak) IsAllowed(userId, userRole, permissionName string) (bool, err
 		Resources []AllowedResources `json:"resources"`
 		RoleIDs   []string           `json:"roleIds"`
 		ClientID  string             `json:"clientId"`
-		UserId    string             `json:"userId"`
+		UserID    string             `json:"userId"`
 	}
 
 	ar := AllowedRequest{
 		RoleIDs:  []string{userRole},
 		ClientID: idOfClient,
-		UserId:   userId,
+		UserID:   userID,
 		Resources: []AllowedResources{
 			{
 				Name: permissionName,
@@ -225,6 +232,9 @@ func (k *Keycloak) IsAllowed(userId, userRole, permissionName string) (bool, err
 			k.HostName,
 			k.RealmName,
 			idOfClient), bytes.NewBuffer(j))
+	if err != nil {
+		return false, bugLog.Error(err)
+	}
 	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := hc.Do(req)
@@ -300,6 +310,9 @@ func (k *Keycloak) GetResourceID(resourceName string) (string, error) {
 	res, err := client.GetResources(k.CTX, token.AccessToken, k.RealmName, idOfClient, gocloak.GetResourceParams{
 		Name: &resourceName,
 	})
+	if err != nil {
+		return "", bugLog.Error(err)
+	}
 	if len(res) == 0 {
 		return "", bugLog.Error("no resource found")
 	}
@@ -307,7 +320,7 @@ func (k *Keycloak) GetResourceID(resourceName string) (string, error) {
 	return *res[0].ID, nil
 }
 
-func (k *Keycloak) GetAllUserScopes(userId string) ([]string, error) {
+func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
 	_, token, err := k.GetClientAndToken()
 	if err != nil {
 		return []string{}, bugLog.Error(err)
@@ -317,7 +330,7 @@ func (k *Keycloak) GetAllUserScopes(userId string) ([]string, error) {
 	if err != nil {
 		return []string{}, bugLog.Error(err)
 	}
-	k.IdOfClient = idOfClient
+	k.IDOfClient = idOfClient
 
 	type reqStruct struct {
 		Resources []struct {
@@ -328,7 +341,7 @@ func (k *Keycloak) GetAllUserScopes(userId string) ([]string, error) {
 		} `json:"context"`
 		RoleIDs      []string `json:"roleIds"`
 		ClientID     string   `json:"clientId"`
-		UserId       string   `json:"userId"`
+		UserID       string   `json:"userId"`
 		Entitlements bool     `json:"entitlements"`
 	}
 
@@ -347,7 +360,7 @@ func (k *Keycloak) GetAllUserScopes(userId string) ([]string, error) {
 		},
 		RoleIDs:      []string{},
 		ClientID:     idOfClient,
-		UserId:       userId,
+		UserID:       userID,
 		Entitlements: false,
 	}
 
@@ -365,6 +378,9 @@ func (k *Keycloak) GetAllUserScopes(userId string) ([]string, error) {
 			k.HostName,
 			k.RealmName,
 			idOfClient), bytes.NewBuffer(j))
+	if err != nil {
+		return []string{}, bugLog.Error(err)
+	}
 	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := hc.Do(req)
