@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Nerzal/gocloak/v10/pkg/jwx"
+	"github.com/Nerzal/gocloak/v11/pkg/jwx"
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
@@ -75,43 +75,43 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := a.CheckDomain(getDomain(clm.Email))
-	if err != nil {
-		accountError(w, errors.New("Failed to check domain: "+err.Error()))
-		return
-	}
-	c := company.NewBlankCompany(a.Config)
-	c.CTX = r.Context()
-	c.CompanyData.Domain = getDomain(clm.Email)
-	c.SetCompanyCookie(w, r, "company")
-
-	if exists {
-		ci, err := a.CompanyInfo(w, r, getDomain(clm.Email))
-		if err != nil {
-			accountError(w, errors.New("Failed to get company info: "+err.Error()))
-			return
-		}
-
-		a.SetUserCookie(w, r, "user", ci.SubDomain, a.UserAccount)
-
-		if ci.Enabled && !c.Config.Local.Development {
-			http.Redirect(w, r,
-				fmt.Sprintf("%s://%s.%s/user/callback",
-					a.Config.FrontendProto,
-					ci.SubDomain,
-					a.Config.Frontend,
-				),
-				http.StatusFound)
-			return
-		}
-	}
-
-	http.Redirect(w, r,
-		fmt.Sprintf("%s://%s/user/callback",
-			a.Config.FrontendProto,
-			a.Config.Frontend,
-		),
-		http.StatusFound)
+	// exists, err := a.CheckDomain(getDomain(clm.Email))
+	// if err != nil {
+	// 	accountError(w, errors.New("Failed to check domain: "+err.Error()))
+	// 	return
+	// }
+	// c := company.NewBlankCompany(a.Config)
+	// c.CTX = r.Context()
+	// c.CompanyData.Domain = getDomain(clm.Email)
+	// c.SetCompanyCookie(w, r, "company")
+	//
+	// if exists {
+	// 	ci, err := a.CompanyInfo(w, r, getDomain(clm.Email))
+	// 	if err != nil {
+	// 		accountError(w, errors.New("Failed to get company info: "+err.Error()))
+	// 		return
+	// 	}
+	//
+	// 	a.SetUserCookie(w, r, "user", ci.SubDomain, a.UserAccount)
+	//
+	// 	if ci.Enabled && !c.Config.Local.Development {
+	// 		http.Redirect(w, r,
+	// 			fmt.Sprintf("%s://%s.%s/user/callback",
+	// 				a.Config.FrontendProto,
+	// 				ci.SubDomain,
+	// 				a.Config.Frontend,
+	// 			),
+	// 			http.StatusFound)
+	// 		return
+	// 	}
+	// }
+	//
+	// http.Redirect(w, r,
+	// 	fmt.Sprintf("%s://%s/user/callback",
+	// 		a.Config.FrontendProto,
+	// 		a.Config.Frontend,
+	// 	),
+	// 	http.StatusFound)
 }
 
 func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims) error {
@@ -119,6 +119,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 		r.Context(),
 		a.Config.Keycloak.ClientID,
 		a.Config.Keycloak.ClientSecret,
+		a.Config.Keycloak.IDofClient,
 		a.Config.Keycloak.Username,
 		a.Config.Keycloak.Password,
 		a.Config.Keycloak.Hostname,
@@ -158,7 +159,7 @@ func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims
 	} else {
 		role, err := kc.GetUserRole(clm.Subject)
 		if err != nil {
-			accountError(w, errors.New("failed to get uer role: "+err.Error()))
+			accountError(w, errors.New("failed to get user role: "+err.Error()))
 			return err
 		}
 		ua.Role = role
@@ -242,6 +243,7 @@ func (a *Account) GetUserPerms(userID string) ([]string, error) {
 		a.CTX,
 		a.Config.Keycloak.ClientID,
 		a.Config.Keycloak.ClientSecret,
+		a.Config.Keycloak.IDofClient,
 		a.Config.Keycloak.Username,
 		a.Config.Keycloak.Password,
 		a.Config.Keycloak.Hostname,

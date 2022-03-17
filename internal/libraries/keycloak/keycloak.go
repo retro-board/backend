@@ -3,12 +3,18 @@ package keycloak
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 
-	"github.com/Nerzal/gocloak/v10"
+	"github.com/Nerzal/gocloak/v11"
 	bugLog "github.com/bugfixes/go-bugfixes/logs"
+	"github.com/zemirco/keycloak"
+	"golang.org/x/oauth2"
 )
 
 type KeycloakRoles struct {
@@ -31,6 +37,12 @@ type Keycloak struct {
 	RealmName string
 
 	Roles KeycloakRoles
+}
+
+type Tokens struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
 }
 
 type KeycloakRespFormat struct {
@@ -84,12 +96,13 @@ type AllowedRequest struct {
 	UserID    string             `json:"userId"`
 }
 
-func CreateKeycloak(ctx context.Context, clientID, clientSecret, userName, password, hostName, realmName string, roles KeycloakRoles) *Keycloak {
+func CreateKeycloak(ctx context.Context, clientID, clientSecret, IDofClient, userName, password, hostName, realmName string, roles KeycloakRoles) *Keycloak {
 	return &Keycloak{
 		CTX: ctx,
 
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
+		IDOfClient:   IDofClient,
 
 		UserName: userName,
 		Password: password,
@@ -128,20 +141,26 @@ func (k *Keycloak) GetIDOfClient() (string, error) {
 	return *clients[0].ID, nil
 }
 
-func (k *Keycloak) GetClientAndToken() (gocloak.GoCloak, *gocloak.JWT, error) {
-	client := gocloak.NewClient(k.HostName)
-	token, err := client.GetToken(k.CTX, k.RealmName, gocloak.TokenOptions{
-		ClientID:     &k.ClientID,
-		ClientSecret: &k.ClientSecret,
-		GrantType:    gocloak.StringP("password"),
-		Username:     &k.UserName,
-		Password:     &k.Password,
-	})
+func (k *Keycloak) GetClient() (*keycloak.Keycloak, error) {
+	ctx := context.Background()
+	cfg := oauth2.Config{
+		ClientID:     k.ClientID,
+		ClientSecret: k.ClientSecret,
+		Endpoint: oauth2.Endpoint{
+			TokenURL: fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token/", k.HostName, k.RealmName),
+		},
+	}
+	token, err := cfg.PasswordCredentialsToken(ctx, k.UserName, k.Password)
 	if err != nil {
-		return nil, nil, bugLog.Error(err)
+		return nil, bugLog.Error(err)
+	}
+	client := cfg.Client(k.CTX, token)
+	kc, err := keycloak.NewKeycloak(client, fmt.Sprintf("%s/", k.HostName))
+	if err != nil {
+		return nil, bugLog.Error(err)
 	}
 
-	return client, token, nil
+	return kc, nil
 }
 
 func (k *Keycloak) SetUserOwner(userID string) error {
@@ -149,32 +168,47 @@ func (k *Keycloak) SetUserOwner(userID string) error {
 }
 
 func (k *Keycloak) setRole(userID, roleName string) error {
-	client, token, err := k.GetClientAndToken()
+	client, err := k.GetClient()
 	if err != nil {
 		return bugLog.Error(err)
 	}
 
-	realmRoles, err := client.GetRealmRoles(k.CTX, token.AccessToken, k.RealmName, gocloak.GetRoleParams{
-		Search: &roleName,
-	})
+	realmRole, resp, err := client.RealmRoles.GetByName(k.CTX, k.RealmName, roleName)
 	if err != nil {
 		return bugLog.Error(err)
 	}
-	if len(realmRoles) == 0 {
-		return bugLog.Error("no role found")
-	}
 
-	if err := client.AddRealmRoleToUser(k.CTX, token.AccessToken, k.RealmName, userID, []gocloak.Role{
-		{
-			ID:          realmRoles[0].ID,
-			Name:        realmRoles[0].Name,
-			ContainerID: realmRoles[0].ContainerID,
-		},
-	}); err != nil {
-		return bugLog.Error(err)
-	}
-
+	fmt.Sprintf("rr: %+v, %+v", realmRole, resp)
 	return nil
+
+	//
+	//
+	// client, token, err := k.GetClientAndToken()
+	// if err != nil {
+	// 	return bugLog.Error(err)
+	// }
+	//
+	// realmRoles, err := client.GetRealmRoles(k.CTX, token.AccessToken, k.RealmName, gocloak.GetRoleParams{
+	// 	Search: &roleName,
+	// })
+	// if err != nil {
+	// 	return bugLog.Error(err)
+	// }
+	// if len(realmRoles) == 0 {
+	// 	return bugLog.Error("no role found")
+	// }
+	//
+	// if err := client.AddRealmRoleToUser(k.CTX, token.AccessToken, k.RealmName, userID, []gocloak.Role{
+	// 	{
+	// 		ID:          realmRoles[0].ID,
+	// 		Name:        realmRoles[0].Name,
+	// 		ContainerID: realmRoles[0].ContainerID,
+	// 	},
+	// }); err != nil {
+	// 	return bugLog.Error(err)
+	// }
+	//
+	// return nil
 }
 
 func (k *Keycloak) SetUserUser(userID string) error {
@@ -186,17 +220,31 @@ func (k *Keycloak) SetUserLeader(userID string) error {
 }
 
 func (k *Keycloak) GetUserRoles(userID string) ([]*gocloak.Role, error) {
-	client, token, err := k.GetClientAndToken()
+	client, err := k.GetClient()
 	if err != nil {
 		return nil, bugLog.Error(err)
 	}
 
-	roles, err := client.GetRealmRolesByUserID(k.CTX, token.AccessToken, k.RealmName, userID)
+	user, resp, err := client.Users.GetByID(k.CTX, k.RealmName, userID)
 	if err != nil {
 		return nil, bugLog.Error(err)
 	}
 
-	return roles, nil
+	fmt.Sprintf("user: %+v, resp: %+v", user, resp)
+
+	return nil, nil
+
+	// client, token, err := k.GetClientAndToken()
+	// if err != nil {
+	// 	return nil, bugLog.Error(err)
+	// }
+	//
+	// roles, err := client.GetRealmRolesByUserID(k.CTX, token.AccessToken, k.RealmName, userID)
+	// if err != nil {
+	// 	return nil, bugLog.Error(err)
+	// }
+	//
+	// return roles, nil
 }
 
 func (k *Keycloak) GetUserRole(userID string) (string, error) {
@@ -224,92 +272,95 @@ func (k *Keycloak) GetUserRole(userID string) (string, error) {
 }
 
 func (k *Keycloak) IsAllowed(userID, userRole, permissionName string) (bool, error) {
-	_, token, err := k.GetClientAndToken()
-	if err != nil {
-		return false, bugLog.Error(err)
-	}
-
-	idOfClient, err := k.GetIDOfClient()
-	if err != nil {
-		return false, bugLog.Error(err)
-	}
-	k.IDOfClient = idOfClient
-
-	res, err := k.GetResourceID(permissionName)
-	if err != nil {
-		return false, bugLog.Error(err)
-	}
-
-	ar := AllowedRequest{
-		RoleIDs:  []string{userRole},
-		ClientID: idOfClient,
-		UserID:   userID,
-		Resources: []AllowedResources{
-			{
-				Name: permissionName,
-				Owner: OwnerStruct{
-					ID: idOfClient,
-				},
-				ID: res,
-			},
-		},
-	}
-
-	result, err := k.sendRequest(ar, token)
-	if err != nil {
-		return false, bugLog.Error(err)
-	}
-
-	if len(result.Results) == 0 {
-		return false, nil
-	}
-
-	if result.Status == "PERMIT" {
-		return true, nil
-	}
+	// _, token, err := k.GetClientAndToken()
+	// if err != nil {
+	// 	return false, bugLog.Error(err)
+	// }
+	//
+	// idOfClient, err := k.GetIDOfClient()
+	// if err != nil {
+	// 	return false, bugLog.Error(err)
+	// }
+	// k.IDOfClient = idOfClient
+	//
+	// res, err := k.GetResourceID(permissionName)
+	// if err != nil {
+	// 	return false, bugLog.Error(err)
+	// }
+	//
+	// ar := AllowedRequest{
+	// 	RoleIDs:  []string{userRole},
+	// 	ClientID: idOfClient,
+	// 	UserID:   userID,
+	// 	Resources: []AllowedResources{
+	// 		{
+	// 			Name: permissionName,
+	// 			Owner: OwnerStruct{
+	// 				ID: idOfClient,
+	// 			},
+	// 			ID: res,
+	// 		},
+	// 	},
+	// }
+	//
+	// result, err := k.sendRequest(ar, token)
+	// if err != nil {
+	// 	return false, bugLog.Error(err)
+	// }
+	//
+	// if len(result.Results) == 0 {
+	// 	return false, nil
+	// }
+	//
+	// if result.Status == "PERMIT" {
+	// 	return true, nil
+	// }
 
 	return false, nil
 }
 
 func (k *Keycloak) GetResourceID(resourceName string) (string, error) {
-	client, token, err := k.GetClientAndToken()
-	if err != nil {
-		return "", bugLog.Error(err)
-	}
+	return "", nil
 
-	idOfClient, err := k.GetIDOfClient()
-	if err != nil {
-		return "", bugLog.Error(err)
-	}
-
-	res, err := client.GetResources(k.CTX, token.AccessToken, k.RealmName, idOfClient, gocloak.GetResourceParams{
-		Name: &resourceName,
-	})
-	if err != nil {
-		return "", bugLog.Error(err)
-	}
-	if len(res) == 0 {
-		return "", bugLog.Error("no resource found")
-	}
-
-	return *res[0].ID, nil
+	// client, token, err := k.GetClientAndToken()
+	// if err != nil {
+	// 	return "", bugLog.Error(err)
+	// }
+	//
+	// idOfClient, err := k.GetIDOfClient()
+	// if err != nil {
+	// 	return "", bugLog.Error(err)
+	// }
+	//
+	// res, err := client.GetResources(k.CTX, token.AccessToken, k.RealmName, idOfClient, gocloak.GetResourceParams{
+	// 	Name: &resourceName,
+	// })
+	// if err != nil {
+	// 	return "", bugLog.Error(err)
+	// }
+	// if len(res) == 0 {
+	// 	return "", bugLog.Error("no resource found")
+	// }
+	//
+	// return *res[0].ID, nil
 }
 
 func (k *Keycloak) getTokenAndIDofClient() (*gocloak.JWT, string, error) {
 	jwt := &gocloak.JWT{}
+	return jwt, "", nil
 
-	_, token, err := k.GetClientAndToken()
-	if err != nil {
-		return jwt, "", bugLog.Error(err)
-	}
-	jwt = token
-
-	idOfClient, err := k.GetIDOfClient()
-	if err != nil {
-		return jwt, "", bugLog.Error(err)
-	}
-
-	return jwt, idOfClient, nil
+	// _, token, err := k.GetClientAndToken()
+	// if err != nil {
+	// 	return jwt, "", bugLog.Error(err)
+	// }
+	// jwt = token
+	//
+	// idOfClient, err := k.GetIDOfClient()
+	// if err != nil {
+	// 	return jwt, "", bugLog.Error(err)
+	// }
+	//
+	// return jwt, idOfClient, nil
 }
 
 func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
@@ -395,4 +446,72 @@ func (k *Keycloak) sendRequest(request interface{}, token *gocloak.JWT) (*Keyclo
 	}
 
 	return ret, nil
+}
+
+func (k *Keycloak) GetTokens() (*Tokens, error) {
+	t := &Tokens{}
+
+	hc := &http.Client{}
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", k.HostName, k.RealmName),
+		strings.NewReader(url.Values{
+			"grant_type": {"password"},
+			"username":   {k.UserName},
+			"password":   {k.Password},
+		}.Encode()))
+	if err != nil {
+		return t, bugLog.Error(err)
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", fmt.Sprintf("Basic %s", k.getBasic()))
+	resp, err := hc.Do(req)
+	if err != nil {
+		return t, bugLog.Error(err)
+	}
+
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(t); err != nil {
+		return t, bugLog.Error(err)
+	}
+
+	return t, nil
+}
+
+func (k *Keycloak) getBasic() string {
+	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", k.ClientID, k.ClientSecret)))
+}
+
+func (k *Keycloak) GetClientID(tokens *Tokens) (string, error) {
+	hc := &http.Client{}
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/admin/realms/%s/clients", k.HostName, k.RealmName),
+		nil,
+	)
+	if err != nil {
+		return "", bugLog.Error(err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", tokens.AccessToken))
+
+	query := req.URL.Query()
+	query.Add("clientId", k.ClientID)
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := hc.Do(req)
+	if err != nil {
+		return "", bugLog.Error(err)
+	}
+	defer resp.Body.Close()
+	e, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", bugLog.Error(err)
+	}
+
+	ee := fmt.Sprintf("%s", e)
+	fmt.Sprint(ee)
+
+	return "", nil
 }

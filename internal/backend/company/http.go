@@ -68,6 +68,7 @@ func (c *Company) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 		c.Config.Keycloak.ClientID,
 		c.Config.Keycloak.ClientSecret,
+		c.Config.Keycloak.IDofClient,
 		c.Config.Keycloak.Username,
 		c.Config.Keycloak.Password,
 		c.Config.Keycloak.Hostname,

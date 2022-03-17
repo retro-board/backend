@@ -33,6 +33,7 @@ func (b *Board) GetAll(subDomain, userID string) ([]BoardInfo, error) {
 		b.CTX,
 		b.Config.Keycloak.ClientID,
 		b.Config.Keycloak.ClientSecret,
+		b.Config.Keycloak.IDofClient,
 		b.Config.Keycloak.Username,
 		b.Config.Keycloak.Password,
 		b.Config.Keycloak.Hostname,

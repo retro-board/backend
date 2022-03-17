@@ -38,7 +38,7 @@ type UserAccount struct {
 
 func NewAccount(config *config.Config) *Account {
 	ctx := context.Background()
-	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/auth/realms/%s", config.Keycloak.Hostname, config.Keycloak.RealmName))
+	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/realms/%s", config.Keycloak.Hostname, config.Keycloak.RealmName))
 	if err != nil {
 		bugLog.Infof("provider failed: %+v", err)
 		return nil
