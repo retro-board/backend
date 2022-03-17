@@ -14,9 +14,10 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/jackc/pgx/v4 v4.15.0
+	github.com/zemirco/keycloak v1.1.0
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 	k8s.io/api v0.23.4
-	k8s.io/apimachinery v0.23.4
+	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v0.23.4
 )
 
@@ -80,7 +81,6 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/zemirco/keycloak v1.1.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20220307211146-efcb8507fb70 // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
