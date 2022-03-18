@@ -233,10 +233,7 @@ func (k *Keycloak) GetUserRoles(userID string) ([]*gocloak.Role, error) {
 	}
 
 	defer resp.Body.Close()
-
-	fmt.Printf("user: %+v, resp: %+v", user, resp)
-
-	return nil, nil
+	fmt.Sprintf("user: %+v", user)
 
 	// client, token, err := k.GetClientAndToken()
 	// if err != nil {
@@ -249,6 +246,8 @@ func (k *Keycloak) GetUserRoles(userID string) ([]*gocloak.Role, error) {
 	// }
 	//
 	// return roles, nil
+
+	return nil, nil
 }
 
 func (k *Keycloak) GetUserRole(userID string) (string, error) {
