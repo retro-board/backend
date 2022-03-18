@@ -96,13 +96,13 @@ type AllowedRequest struct {
 	UserID    string             `json:"userId"`
 }
 
-func CreateKeycloak(ctx context.Context, clientID, clientSecret, IDofClient, userName, password, hostName, realmName string, roles KeycloakRoles) *Keycloak {
+func CreateKeycloak(ctx context.Context, clientID, clientSecret, idOfClient, userName, password, hostName, realmName string, roles KeycloakRoles) *Keycloak {
 	return &Keycloak{
 		CTX: ctx,
 
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		IDOfClient:   IDofClient,
+		IDOfClient:   idOfClient,
 
 		UserName: userName,
 		Password: password,
@@ -178,7 +178,9 @@ func (k *Keycloak) setRole(userID, roleName string) error {
 		return bugLog.Error(err)
 	}
 
-	fmt.Sprintf("rr: %+v, %+v", realmRole, resp)
+	defer resp.Body.Close()
+
+	fmt.Printf("rr: %+v, %+v, %v", realmRole, resp, userID)
 	return nil
 
 	//
@@ -230,7 +232,9 @@ func (k *Keycloak) GetUserRoles(userID string) ([]*gocloak.Role, error) {
 		return nil, bugLog.Error(err)
 	}
 
-	fmt.Sprintf("user: %+v, resp: %+v", user, resp)
+	defer resp.Body.Close()
+
+	fmt.Printf("user: %+v, resp: %+v", user, resp)
 
 	return nil, nil
 
@@ -510,8 +514,7 @@ func (k *Keycloak) GetClientID(tokens *Tokens) (string, error) {
 		return "", bugLog.Error(err)
 	}
 
-	ee := fmt.Sprintf("%s", e)
-	fmt.Sprint(ee)
+	fmt.Printf("%s", e)
 
 	return "", nil
 }
