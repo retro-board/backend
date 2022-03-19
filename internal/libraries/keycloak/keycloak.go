@@ -174,43 +174,18 @@ func (k *Keycloak) setRole(userID, roleName string) error {
 	}
 
 	realmRole, resp, err := client.RealmRoles.GetByName(k.CTX, k.RealmName, roleName)
+	defer resp.Body.Close()
 	if err != nil {
 		return bugLog.Error(err)
 	}
 
+	resp, err = client.Users.AddRealmRoles(k.CTX, k.RealmName, userID, []*keycloak.Role{realmRole})
 	defer resp.Body.Close()
+	if err != nil {
+		return bugLog.Error(err)
+	}
 
-	fmt.Printf("rr: %+v, %+v, %v", realmRole, resp, userID)
 	return nil
-
-	//
-	//
-	// client, token, err := k.GetClientAndToken()
-	// if err != nil {
-	// 	return bugLog.Error(err)
-	// }
-	//
-	// realmRoles, err := client.GetRealmRoles(k.CTX, token.AccessToken, k.RealmName, gocloak.GetRoleParams{
-	// 	Search: &roleName,
-	// })
-	// if err != nil {
-	// 	return bugLog.Error(err)
-	// }
-	// if len(realmRoles) == 0 {
-	// 	return bugLog.Error("no role found")
-	// }
-	//
-	// if err := client.AddRealmRoleToUser(k.CTX, token.AccessToken, k.RealmName, userID, []gocloak.Role{
-	// 	{
-	// 		ID:          realmRoles[0].ID,
-	// 		Name:        realmRoles[0].Name,
-	// 		ContainerID: realmRoles[0].ContainerID,
-	// 	},
-	// }); err != nil {
-	// 	return bugLog.Error(err)
-	// }
-	//
-	// return nil
 }
 
 func (k *Keycloak) SetUserUser(userID string) error {
@@ -221,33 +196,16 @@ func (k *Keycloak) SetUserLeader(userID string) error {
 	return k.setRole(userID, k.Roles.Leader)
 }
 
-func (k *Keycloak) GetUserRoles(userID string) ([]*gocloak.Role, error) {
+func (k *Keycloak) GetUserRoles(userID string) ([]*keycloak.Role, error) {
 	client, err := k.GetClient()
 	if err != nil {
 		return nil, bugLog.Error(err)
 	}
 
-	user, resp, err := client.Users.GetByID(k.CTX, k.RealmName, userID)
-	if err != nil {
-		return nil, bugLog.Error(err)
-	}
-
+	roles, resp, err := client.Users.ListRealmRoles(k.CTX, k.RealmName, userID)
 	defer resp.Body.Close()
-	fmt.Sprintf("user: %+v", user)
 
-	// client, token, err := k.GetClientAndToken()
-	// if err != nil {
-	// 	return nil, bugLog.Error(err)
-	// }
-	//
-	// roles, err := client.GetRealmRolesByUserID(k.CTX, token.AccessToken, k.RealmName, userID)
-	// if err != nil {
-	// 	return nil, bugLog.Error(err)
-	// }
-	//
-	// return roles, nil
-
-	return nil, nil
+	return roles, err
 }
 
 func (k *Keycloak) GetUserRole(userID string) (string, error) {
@@ -275,104 +233,49 @@ func (k *Keycloak) GetUserRole(userID string) (string, error) {
 }
 
 func (k *Keycloak) IsAllowed(userID, userRole, permissionName string) (bool, error) {
-	// _, token, err := k.GetClientAndToken()
-	// if err != nil {
-	// 	return false, bugLog.Error(err)
-	// }
-	//
-	// idOfClient, err := k.GetIDOfClient()
-	// if err != nil {
-	// 	return false, bugLog.Error(err)
-	// }
-	// k.IDOfClient = idOfClient
-	//
-	// res, err := k.GetResourceID(permissionName)
-	// if err != nil {
-	// 	return false, bugLog.Error(err)
-	// }
-	//
-	// ar := AllowedRequest{
-	// 	RoleIDs:  []string{userRole},
-	// 	ClientID: idOfClient,
-	// 	UserID:   userID,
-	// 	Resources: []AllowedResources{
-	// 		{
-	// 			Name: permissionName,
-	// 			Owner: OwnerStruct{
-	// 				ID: idOfClient,
-	// 			},
-	// 			ID: res,
-	// 		},
-	// 	},
-	// }
-	//
-	// result, err := k.sendRequest(ar, token)
-	// if err != nil {
-	// 	return false, bugLog.Error(err)
-	// }
-	//
-	// if len(result.Results) == 0 {
-	// 	return false, nil
-	// }
-	//
-	// if result.Status == "PERMIT" {
-	// 	return true, nil
-	// }
+	client, err := k.GetClient()
+	if err != nil {
+		return false, bugLog.Error(err)
+	}
+
+	res, resp, err := client.Resources.Search(k.CTX, k.RealmName, k.ClientID, permissionName)
+	defer resp.Body.Close()
+	if err != nil {
+		return false, bugLog.Error(err)
+	}
+
+	ar := AllowedRequest{
+		RoleIDs:  []string{userRole},
+		ClientID: k.ClientID,
+		UserID:   userID,
+		Resources: []AllowedResources{
+			{
+				Name: permissionName,
+				Owner: OwnerStruct{
+					ID: k.IDOfClient,
+				},
+				ID: *res.ID,
+			},
+		},
+	}
+	result, resp, err := client.Policies.EvaluatePolicy(k.CTX, k.RealmName, k.IDOfClient, ar)
+	defer resp.Body.Close()
+	if err != nil {
+		return false, bugLog.Error(err)
+	}
+
+	if len(result.Results) == 0 {
+		return false, nil
+	}
+
+	if result.Status == "PERMIT" {
+		return true, nil
+	}
 
 	return false, nil
 }
 
-func (k *Keycloak) GetResourceID(resourceName string) (string, error) {
-	return "", nil
-
-	// client, token, err := k.GetClientAndToken()
-	// if err != nil {
-	// 	return "", bugLog.Error(err)
-	// }
-	//
-	// idOfClient, err := k.GetIDOfClient()
-	// if err != nil {
-	// 	return "", bugLog.Error(err)
-	// }
-	//
-	// res, err := client.GetResources(k.CTX, token.AccessToken, k.RealmName, idOfClient, gocloak.GetResourceParams{
-	// 	Name: &resourceName,
-	// })
-	// if err != nil {
-	// 	return "", bugLog.Error(err)
-	// }
-	// if len(res) == 0 {
-	// 	return "", bugLog.Error("no resource found")
-	// }
-	//
-	// return *res[0].ID, nil
-}
-
-func (k *Keycloak) getTokenAndIDofClient() (*gocloak.JWT, string, error) {
-	jwt := &gocloak.JWT{}
-	return jwt, "", nil
-
-	// _, token, err := k.GetClientAndToken()
-	// if err != nil {
-	// 	return jwt, "", bugLog.Error(err)
-	// }
-	// jwt = token
-	//
-	// idOfClient, err := k.GetIDOfClient()
-	// if err != nil {
-	// 	return jwt, "", bugLog.Error(err)
-	// }
-	//
-	// return jwt, idOfClient, nil
-}
-
 func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
-	token, idOfClient, err := k.getTokenAndIDofClient()
-	if err != nil {
-		return []string{}, bugLog.Error(err)
-	}
-	k.IDOfClient = idOfClient
-
 	ar := AllScopesStructure{
 		Resources: []struct {
 			Scopes []string `json:"scopes"`
@@ -387,12 +290,17 @@ func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
 			Attributes: struct{}{},
 		},
 		RoleIDs:      []string{},
-		ClientID:     idOfClient,
+		ClientID:     k.IDOfClient,
 		UserID:       userID,
 		Entitlements: false,
 	}
 
-	result, err := k.sendRequest(ar, token)
+	client, err := k.GetClient()
+	if err != nil {
+		return nil, bugLog.Error(err)
+	}
+	result, resp, err := client.Policies.EvaluatePolicy(k.CTX, k.RealmName, k.IDOfClient, ar)
+	defer resp.Body.Close()
 	if err != nil {
 		return []string{}, bugLog.Error(err)
 	}

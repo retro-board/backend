@@ -75,43 +75,43 @@ func (a *Account) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// exists, err := a.CheckDomain(getDomain(clm.Email))
-	// if err != nil {
-	// 	accountError(w, errors.New("Failed to check domain: "+err.Error()))
-	// 	return
-	// }
-	// c := company.NewBlankCompany(a.Config)
-	// c.CTX = r.Context()
-	// c.CompanyData.Domain = getDomain(clm.Email)
-	// c.SetCompanyCookie(w, r, "company")
-	//
-	// if exists {
-	// 	ci, err := a.CompanyInfo(w, r, getDomain(clm.Email))
-	// 	if err != nil {
-	// 		accountError(w, errors.New("Failed to get company info: "+err.Error()))
-	// 		return
-	// 	}
-	//
-	// 	a.SetUserCookie(w, r, "user", ci.SubDomain, a.UserAccount)
-	//
-	// 	if ci.Enabled && !c.Config.Local.Development {
-	// 		http.Redirect(w, r,
-	// 			fmt.Sprintf("%s://%s.%s/user/callback",
-	// 				a.Config.FrontendProto,
-	// 				ci.SubDomain,
-	// 				a.Config.Frontend,
-	// 			),
-	// 			http.StatusFound)
-	// 		return
-	// 	}
-	// }
-	//
-	// http.Redirect(w, r,
-	// 	fmt.Sprintf("%s://%s/user/callback",
-	// 		a.Config.FrontendProto,
-	// 		a.Config.Frontend,
-	// 	),
-	// 	http.StatusFound)
+	exists, err := a.CheckDomain(getDomain(clm.Email))
+	if err != nil {
+		accountError(w, errors.New("Failed to check domain: "+err.Error()))
+		return
+	}
+	c := company.NewBlankCompany(a.Config)
+	c.CTX = r.Context()
+	c.CompanyData.Domain = getDomain(clm.Email)
+	c.SetCompanyCookie(w, r, "company")
+
+	if exists {
+		ci, err := a.CompanyInfo(w, r, getDomain(clm.Email))
+		if err != nil {
+			accountError(w, errors.New("Failed to get company info: "+err.Error()))
+			return
+		}
+
+		a.SetUserCookie(w, r, "user", ci.SubDomain, a.UserAccount)
+
+		if ci.Enabled && !c.Config.Local.Development {
+			http.Redirect(w, r,
+				fmt.Sprintf("%s://%s.%s/user/callback",
+					a.Config.FrontendProto,
+					ci.SubDomain,
+					a.Config.Frontend,
+				),
+				http.StatusFound)
+			return
+		}
+	}
+
+	http.Redirect(w, r,
+		fmt.Sprintf("%s://%s/user/callback",
+			a.Config.FrontendProto,
+			a.Config.Frontend,
+		),
+		http.StatusFound)
 }
 
 func (a *Account) GetRole(w http.ResponseWriter, r *http.Request, clm jwx.Claims) error {

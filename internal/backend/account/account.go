@@ -94,14 +94,3 @@ func getDomain(email string) string {
 	fullDomain := domainParts[len(domainParts)-1]
 	return strings.Split(fullDomain, ".")[0]
 }
-
-// func (a *Account) CheckUserPermission(userId, permissionName string) (bool, error) {
-// 	client, token, err := a.getClientAndToken()
-// 	if err != nil {
-// 		return false, err
-// 	}
-//
-// 	client.
-//
-// 	return false, nil
-// }
