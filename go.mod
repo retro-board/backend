@@ -12,7 +12,7 @@ require (
 	github.com/go-chi/httplog v0.2.4
 	github.com/golang-jwt/jwt/v4 v4.4.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/hashicorp/vault/api v1.4.1
+	github.com/hashicorp/vault/api v1.5.0
 	github.com/jackc/pgx/v4 v4.15.0
 	github.com/zemirco/keycloak v1.1.0
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
