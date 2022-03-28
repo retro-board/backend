@@ -1,7 +1,6 @@
 package keycloak
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -180,7 +179,11 @@ func (k *Keycloak) setRole(userID, roleName string) error {
 	}
 
 	resp, err = client.Users.AddRealmRoles(k.CTX, k.RealmName, userID, []*keycloak.Role{realmRole})
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			bugLog.Local().Info(err)
+		}
+	}()
 	if err != nil {
 		return bugLog.Error(err)
 	}
@@ -325,39 +328,39 @@ func (k *Keycloak) GetAllUserScopes(userID string) ([]string, error) {
 	return resultSet, nil
 }
 
-func (k *Keycloak) sendRequest(request interface{}, token *gocloak.JWT) (*KeycloakRespFormat, error) {
-	ret := &KeycloakRespFormat{}
-
-	j, err := json.Marshal(request)
-	if err != nil {
-		return ret, bugLog.Error(err)
-	}
-
-	hc := &http.Client{}
-	req, err := http.NewRequest(
-		"POST",
-		fmt.Sprintf(
-			"%s/auth/admin/realms/%s/clients/%s/authz/resource-server/policy/evaluate",
-			k.HostName,
-			k.RealmName,
-			k.IDOfClient), bytes.NewBuffer(j))
-	if err != nil {
-		return ret, bugLog.Error(err)
-	}
-	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := hc.Do(req)
-	if err != nil {
-		return ret, bugLog.Error(err)
-	}
-	defer resp.Body.Close()
-
-	if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
-		return ret, bugLog.Error(err)
-	}
-
-	return ret, nil
-}
+// func (k *Keycloak) sendRequest(request interface{}, token *gocloak.JWT) (*KeycloakRespFormat, error) {
+// 	ret := &KeycloakRespFormat{}
+//
+// 	j, err := json.Marshal(request)
+// 	if err != nil {
+// 		return ret, bugLog.Error(err)
+// 	}
+//
+// 	hc := &http.Client{}
+// 	req, err := http.NewRequest(
+// 		"POST",
+// 		fmt.Sprintf(
+// 			"%s/auth/admin/realms/%s/clients/%s/authz/resource-server/policy/evaluate",
+// 			k.HostName,
+// 			k.RealmName,
+// 			k.IDOfClient), bytes.NewBuffer(j))
+// 	if err != nil {
+// 		return ret, bugLog.Error(err)
+// 	}
+// 	req.Header.Add("Authorization", "Bearer "+token.AccessToken)
+// 	req.Header.Add("Content-Type", "application/json")
+// 	resp, err := hc.Do(req)
+// 	if err != nil {
+// 		return ret, bugLog.Error(err)
+// 	}
+// 	defer resp.Body.Close()
+//
+// 	if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
+// 		return ret, bugLog.Error(err)
+// 	}
+//
+// 	return ret, nil
+// }
 
 func (k *Keycloak) GetTokens() (*Tokens, error) {
 	t := &Tokens{}
