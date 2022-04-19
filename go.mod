@@ -8,7 +8,7 @@ require (
 	github.com/caarlos0/env/v6 v6.9.1
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/go-chi/chi/v5 v5.0.7
-	github.com/go-chi/cors v1.2.0
+	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/httplog v0.2.4
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/gorilla/websocket v1.5.0
