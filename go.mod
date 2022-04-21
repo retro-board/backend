@@ -16,8 +16,8 @@ require (
 	github.com/jackc/pgx/v4 v4.15.0
 	github.com/zemirco/keycloak v1.1.0
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
-	k8s.io/api v0.23.5
-	k8s.io/apimachinery v0.23.5
+	k8s.io/api v0.23.6
+	k8s.io/apimachinery v0.23.6
 	k8s.io/client-go v0.23.5
 )
 
